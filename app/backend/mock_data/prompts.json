@@ -1,0 +1,44 @@
+[
+  {
+    "user_id": "1219947",
+    "title": "Prompt: Image Quality Improvements",
+    "tool": "NanoBanana",
+    "category": "Social Media",
+    "text": "Create a [PLATFORM] banner for [CAMPAIGN_NAME]. Style: [BRAND_STYLE]. Include: headline text '[HEADLINE]', brand colors, and [VISUAL_ELEMENT]. Aspect ratio: [RATIO]. Mood: [MOOD]."
+  },
+  {
+    "user_id": "1219947",
+    "title": "Prompt: Moving Video of Peoples",
+    "tool": "Midjourney",
+    "category": "Video Content",
+    "text": "Create a [PLATFORM] banner for [CAMPAIGN_NAME]. Style: [BRAND_STYLE]. Include: headline text '[HEADLINE]', brand colors, and [VISUAL_ELEMENT]. Aspect ratio: [RATIO]. Mood: [MOOD]."
+  },
+  {
+    "user_id": "1219947",
+    "title": "Prompt: Brand Identity Shot",
+    "tool": "Flux 1.1 Pro",
+    "category": "Brand Design",
+    "text": "Generate a professional brand identity image for [BRAND_NAME]. Use [PRIMARY_COLOR] and [SECONDARY_COLOR]. Style: [AESTHETIC]. Subject: [SUBJECT]. Background: [BG_TYPE]. Output: [FORMAT]."
+  },
+  {
+    "user_id": "1219947",
+    "title": "Prompt: Social Media Ad Copy",
+    "tool": "Claude Sonnet",
+    "category": "Copywriting",
+    "text": "Write a compelling [PLATFORM] ad for [PRODUCT]. Target audience: [AUDIENCE]. Tone: [TONE]. Include a CTA: [CTA]. Word limit: [LIMIT]. Hook: [HOOK_STYLE]."
+  },
+  {
+    "user_id": "1219947",
+    "title": "Prompt: Email Campaign Header",
+    "tool": "GPT Image",
+    "category": "Email",
+    "text": "Design an email header for [CAMPAIGN_NAME] by [BRAND]. Dimensions: 600x200px. Include: [HEADLINE] text overlay, brand colors [COLORS], and [IMAGE_STYLE] background. CTA area at [POSITION]."
+  },
+  {
+    "user_id": "1219947",
+    "title": "Prompt: Product Photography Style",
+    "tool": "Flux Ultra",
+    "category": "Photography",
+    "text": "Generate a product photo of [PRODUCT] in [SETTING]. Lighting: [LIGHTING_STYLE]. Background: [BG_COLOR]. Camera angle: [ANGLE]. Mood: [MOOD]. Style: [PHOTOGRAPHIC_STYLE]. Resolution: [RES]."
+  }
+]

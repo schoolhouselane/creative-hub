@@ -1,0 +1,78 @@
+{
+  "status": "success",
+  "results": [
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompislqaagnq/hero-banner-creative-agency.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompislqaagnq/hero-banner-creative-agency.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompislqaagnq/hero-banner-creative-agency.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Dark futuristic creative agency workspace with holographic design tools floating in air, neon purple and cyan lighting, sleek modern desk with multiple screens showing creative work, moody atmospheric lighting",
+      "style": "photorealistic",
+      "filename": "hero-banner-creative-agency.jpg"
+    },
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompirmiaagoq/design-brief-icon.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompirmiaagoq/design-brief-icon.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompirmiaagoq/design-brief-icon.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Abstract geometric shapes and forms representing design and branding - logos, color swatches, typography specimens floating in dark space with purple neon glow",
+      "style": "3d",
+      "filename": "design-brief-icon.jpg"
+    },
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompisqaaagqq/ads-brief-icon.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompisqaaagqq/ads-brief-icon.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompisqaaagqq/ads-brief-icon.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Digital advertising screens and billboards in a futuristic cityscape, showing ad campaigns with metrics and analytics overlays, cyan and purple neon lighting",
+      "style": "3d",
+      "filename": "ads-brief-icon.jpg"
+    },
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompipcqaagqa/social-brief-icon.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompipcqaagqa/social-brief-icon.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompipcqaagqa/social-brief-icon.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Social media platform icons and engagement elements like hearts, comments, shares floating in a dynamic composition with gradient purple to cyan background",
+      "style": "3d",
+      "filename": "social-brief-icon.jpg"
+    },
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjdxqaagpq/email-brief-icon.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjdxqaagpq/email-brief-icon.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjdxqaagpq/email-brief-icon.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Modern email marketing visualization with floating newsletter templates, envelope icons, and campaign analytics in dark space with emerald and purple glow",
+      "style": "3d",
+      "filename": "email-brief-icon.jpg"
+    },
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjfjiaagoq/content-brief-icon.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjfjiaagoq/content-brief-icon.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjfjiaagoq/content-brief-icon.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Content creation workspace with floating text blocks, blog articles, SEO keywords, and editorial elements in dark atmospheric space with warm amber and purple lighting",
+      "style": "3d",
+      "filename": "content-brief-icon.jpg"
+    },
+    {
+      "status": "success",
+      "path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjgiiaagpa/video-brief-icon.png",
+      "absolute_path": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjgiiaagpa/video-brief-icon.png",
+      "url": "https://mgx-backend-cdn.metadl.com/generate/images/1219469/2026-05-12/ompjgiiaagpa/video-brief-icon.png",
+      "message": "Image generated successfully.\n\nNote: The image is on CDN and will be displayed automatically. Just describe what you created briefly, no need to mention filenames or URLs.",
+      "description": "Video production elements with camera, film reel, editing timeline, and play buttons floating in dark cinematic space with red and purple neon accents",
+      "style": "3d",
+      "filename": "video-brief-icon.jpg"
+    }
+  ],
+  "success_count": 7,
+  "failed_count": 0,
+  "message": "Generated 7/7 images"
+}

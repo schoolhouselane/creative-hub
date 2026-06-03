@@ -1,0 +1,44 @@
+[
+    {
+        "brand_name": "TechVision Labs",
+        "primary_color": "#7c3aed",
+        "secondary_color": "#06b6d4",
+        "accent_color": "#f59e0b",
+        "font_heading": "Inter",
+        "font_body": "Inter",
+        "tone_of_voice": "Professional, innovative, forward-thinking",
+        "logo_url": "",
+        "tagline": "Building Tomorrow's Technology",
+        "industry": "Technology",
+        "guidelines_notes": "Use clean, minimal designs. Avoid cluttered layouts.",
+        "user_id": "1219947"
+    },
+    {
+        "brand_name": "GreenLeaf Organics",
+        "primary_color": "#10b981",
+        "secondary_color": "#065f46",
+        "accent_color": "#fbbf24",
+        "font_heading": "Playfair Display",
+        "font_body": "Lato",
+        "tone_of_voice": "Warm, natural, trustworthy, eco-conscious",
+        "logo_url": "",
+        "tagline": "Nature's Best, Delivered Fresh",
+        "industry": "Food & Beverage",
+        "guidelines_notes": "Earth tones preferred. Photography should feel organic and authentic.",
+        "user_id": "1219947"
+    },
+    {
+        "brand_name": "UrbanFit Studio",
+        "primary_color": "#ef4444",
+        "secondary_color": "#1e1e2e",
+        "accent_color": "#f97316",
+        "font_heading": "Montserrat",
+        "font_body": "Open Sans",
+        "tone_of_voice": "Energetic, motivating, bold, empowering",
+        "logo_url": "",
+        "tagline": "Push Your Limits",
+        "industry": "Fitness & Wellness",
+        "guidelines_notes": "High contrast designs. Action-oriented imagery. Bold typography.",
+        "user_id": "1219947"
+    }
+]

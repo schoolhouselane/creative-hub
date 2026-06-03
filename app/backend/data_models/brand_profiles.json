@@ -1,0 +1,63 @@
+{
+    "title": "brand_profiles",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID who owns the brand profile"
+        },
+        "brand_name": {
+            "type": "string",
+            "description": "Brand name"
+        },
+        "primary_color": {
+            "type": "string",
+            "description": "Primary brand color hex"
+        },
+        "secondary_color": {
+            "type": "string",
+            "description": "Secondary brand color hex"
+        },
+        "accent_color": {
+            "type": "string",
+            "description": "Accent brand color hex"
+        },
+        "font_heading": {
+            "type": "string",
+            "description": "Heading font family"
+        },
+        "font_body": {
+            "type": "string",
+            "description": "Body font family"
+        },
+        "tone_of_voice": {
+            "type": "string",
+            "description": "Brand tone of voice description"
+        },
+        "logo_url": {
+            "type": "string",
+            "description": "URL to brand logo"
+        },
+        "tagline": {
+            "type": "string",
+            "description": "Brand tagline"
+        },
+        "industry": {
+            "type": "string",
+            "description": "Industry/sector"
+        },
+        "guidelines_notes": {
+            "type": "string",
+            "description": "Additional brand guidelines"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "brand_name"
+    ]
+}

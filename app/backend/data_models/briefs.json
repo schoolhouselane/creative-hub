@@ -1,0 +1,81 @@
+{
+    "title": "briefs",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID who created the brief"
+        },
+        "brief_type": {
+            "type": "string",
+            "description": "Type: design, ads, social, email, content, video"
+        },
+        "title": {
+            "type": "string",
+            "description": "Brief title"
+        },
+        "status": {
+            "type": "string",
+            "description": "Status: new, in_progress, completed, revision"
+        },
+        "brand_name": {
+            "type": "string",
+            "description": "Client brand name"
+        },
+        "project_description": {
+            "type": "string",
+            "description": "Overall project description"
+        },
+        "target_audience": {
+            "type": "string",
+            "description": "Target audience description"
+        },
+        "tone_style": {
+            "type": "string",
+            "description": "Desired tone and style"
+        },
+        "dimensions": {
+            "type": "string",
+            "description": "Required dimensions/format"
+        },
+        "platform": {
+            "type": "string",
+            "description": "Target platform"
+        },
+        "key_message": {
+            "type": "string",
+            "description": "Key message or CTA"
+        },
+        "additional_notes": {
+            "type": "string",
+            "description": "Any additional notes or requirements"
+        },
+        "form_data": {
+            "type": "string",
+            "description": "JSON string of all form field values"
+        },
+        "ai_tool": {
+            "type": "string",
+            "description": "Selected AI tool for generation"
+        },
+        "generated_asset_url": {
+            "type": "string",
+            "description": "URL of the generated asset"
+        },
+        "priority": {
+            "type": "string",
+            "description": "Priority: low, medium, high, urgent"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "brief_type",
+        "title",
+        "status"
+    ]
+}
