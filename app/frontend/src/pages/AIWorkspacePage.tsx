@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   Smartphone, Play, Paintbrush, Megaphone, Mail, Monitor,
   ChevronDown, LayoutGrid, List, Send, Loader2, ArrowLeft, ArrowRight,
-  MessageSquare, Download, Bookmark, Sparkles, Trash2, ImagePlus, X,
+  MessageSquare, Download, Bookmark, Sparkles, Trash2, ImagePlus, X, Copy, Check, Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import Markdown from 'markdown-to-jsx';
+import ImageEditorModal from '@/components/ImageEditorModal';
 import { type BrandProfile } from '@/lib/briefTypes';
 
 const mgxClient = createClient();
@@ -234,19 +236,8 @@ function buildEnrichedImagePrompt(userPrompt: string, brand: BrandProfile, conte
   if (s('typography_notes')) typo.push(s('typography_notes')!);
   if (typo.length) sections.push('\n[TYPOGRAPHY]\n' + typo.join('\n'));
 
-  // ── Logo placement ───────────────────────────────────────────────────────────
-  const logo: string[] = [];
-  if (s('logo_usage'))     logo.push(s('logo_usage')!);
-  if (s('logo_placement')) logo.push(s('logo_placement')!);
-  // Content-type default if nothing explicit captured
-  if (contentType === 'social') {
-    logo.push('MANDATORY: Place the brand logo in the bottom-right corner with consistent padding (clear space = height of the logo "S" on all sides). Logo must be clearly readable but never overpower the visual content.');
-  } else if (contentType === 'ads') {
-    logo.push('MANDATORY: Brand logo bottom-left or bottom-right with clear space on all sides. Never stretch, recolour, or crowd the logo.');
-  } else {
-    logo.push('Include the brand logo. Position bottom-left or bottom-right depending on composition. Maintain clear space on all sides. Never distort or recolour the logo.');
-  }
-  sections.push('\n[LOGO PLACEMENT — NON-NEGOTIABLE]\n' + logo.join('\n'));
+  // ── Clean background — text/logo added via the editor ───────────────────────
+  sections.push('\n[CRITICAL — READ CAREFULLY]\nDo NOT render any text, headlines, captions, logos, watermarks, or graphic overlays inside the image. Generate a clean photographic or illustrative background scene only. Typography and logo are applied separately in post-production.');
 
   // ── Brand rules ──────────────────────────────────────────────────────────────
   const rules: string[] = [];
@@ -266,7 +257,7 @@ function buildEnrichedImagePrompt(userPrompt: string, brand: BrandProfile, conte
   // ── Format + quality ─────────────────────────────────────────────────────────
   const formatHint = CONTENT_FORMAT_HINTS[contentType] ?? CONTENT_FORMAT_HINTS.social;
   sections.push('\n[FORMAT REQUIREMENTS]\n' + formatHint);
-  sections.push('QUALITY MANDATE: Photorealistic, ultra-high production quality, immediately publishable. Every element — colours, typography, photography style, logo placement — must match the brand DNA above exactly. This is not a generic image. This is a branded asset for ' + brand.brand_name + '.');
+  sections.push('QUALITY MANDATE: Photorealistic, ultra-high production quality. Strong composition, dramatic lighting, cinematic feel aligned with brand DNA above. No text. No logo. No overlays. Clean scene only — ' + brand.brand_name + ' brand aesthetic.');
 
   return sections.join('\n');
 }
@@ -290,6 +281,56 @@ interface Message {
 }
 
 type ExtendedProfile = BrandProfile & { created_at?: string };
+
+// ─── Knowledge Base (localStorage, last 5 chats) ────────────────────────────────
+
+const KB_KEY = 'shl_kb_chats';
+
+interface SavedChat {
+  id: string;
+  brandName: string;
+  typeLabel: string;
+  ai: string;
+  preview: string;       // first user message truncated
+  imageCount: number;
+  messages: Message[];
+  chatState: ChatState;
+  savedAt: string;
+}
+
+function kbLoad(): SavedChat[] {
+  try { return JSON.parse(localStorage.getItem(KB_KEY) || '[]'); } catch { return []; }
+}
+
+function kbSave(state: ChatState, msgs: Message[]): void {
+  if (msgs.length === 0) return;
+  const prev = kbLoad();
+  const first = msgs.find(m => m.role === 'user')?.content ?? 'Chat session';
+  // strip base64 blobs before persisting to keep localStorage lean
+  const clean = msgs.map(({ attachedImage: _drop, ...m }) => m);
+  const entry: SavedChat = {
+    id: Date.now().toString(),
+    brandName: state.brand.brand_name,
+    typeLabel: state.typeLabel,
+    ai: state.ai,
+    preview: first.slice(0, 100),
+    imageCount: msgs.filter(m => m.imageUrl).length,
+    messages: clean,
+    chatState: state,
+    savedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(KB_KEY, JSON.stringify([entry, ...prev].slice(0, 5)));
+}
+
+function kbRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -687,10 +728,12 @@ function ChatView({
   chatState,
   onReset,
   initialMessages,
+  onResumeChat,
 }: {
   chatState: ChatState;
   onReset: () => void;
   initialMessages?: Message[];
+  onResumeChat: (saved: SavedChat) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState('');
@@ -699,6 +742,7 @@ function ChatView({
   const [enhancing, setEnhancing] = useState(false);
   const [enhancedPrompt, setEnhancedPrompt] = useState('');
   const [showEnhanced, setShowEnhanced] = useState(false);
+  const [copiedEnhanced, setCopiedEnhanced] = useState(false);
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [detectedAspectRatio, setDetectedAspectRatio] = useState<string>('1:1');
   // Pinned reference: the original uploaded template — re-sent every turn so Gemini
@@ -707,6 +751,10 @@ function ChatView({
   const [pinnedAspectRatio, setPinnedAspectRatio] = useState<string>('1:1');
   const [pinnedProducts, setPinnedProducts] = useState<{ name: string; url: string }[]>([]);
   const [layoutReference, setLayoutReference] = useState<string | null>(null);
+  const [outputMode, setOutputMode] = useState<'image' | 'text'>('image');
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+  const [savedChats, setSavedChats] = useState<SavedChat[]>(() => kbLoad());
+  const [kbOpen, setKbOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -715,6 +763,35 @@ function ChatView({
   const suggestions = SUGGESTIONS[chatState.type] ?? [];
   const typeEntry = CONTENT_TYPES.find((t) => t.id === chatState.type);
   const TypeIcon = typeEntry?.icon ?? MessageSquare;
+
+  // Load persistent chat history for this brand on mount
+  useEffect(() => {
+    if (!chatState.brand.id) return;
+    axios.get(`/api/v1/entities/brand_profiles/${chatState.brand.id}/chat`)
+      .then((res) => {
+        const loaded: Message[] = (res.data?.messages ?? []).map((m: Record<string, unknown>) => ({
+          role: m.role as string,
+          content: m.content as string,
+          imageUrl: (m.image_url as string) ?? undefined,
+          saved: (m.saved as boolean) ?? false,
+        }));
+        if (loaded.length > 0) setMessages(loaded);
+      })
+      .catch(() => {/* no history yet — start fresh */});
+  }, [chatState.brand.id]);
+
+  // Persist chat history to DB after every message exchange
+  const persistHistory = useCallback((msgs: Message[]) => {
+    if (!chatState.brand.id) return;
+    axios.post(`/api/v1/entities/brand_profiles/${chatState.brand.id}/chat`, {
+      messages: msgs.map((m) => ({
+        role: m.role,
+        content: m.content,
+        image_url: m.imageUrl ?? null,
+        saved: m.saved ?? false,
+      })),
+    }).catch(() => {/* silently fail — local state is still correct */});
+  }, [chatState.brand.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -855,6 +932,72 @@ function ChatView({
     const userMsg: Message = { role: 'user', content: text, attachedImage: imageAttachment ?? undefined };
     setMessages((prev) => [...prev, userMsg]);
 
+    setInput('');
+    setImageAttachment(null);
+    setDetectedAspectRatio('1:1');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setGenerating(true);
+
+    // ── Text / Chat mode ────────────────────────────────────────────────────
+    if (outputMode === 'text') {
+      const loadingMsg: Message = { role: 'assistant', content: '__streaming__' };
+      setMessages((prev) => [...prev, loadingMsg]);
+      try {
+        const brandBrief = buildBrandBrief(chatState.brand);
+        const sysMsg = [
+          systemPrompt,
+          brandBrief ? `\n\nBrand context:\n${brandBrief}` : '',
+        ].join('');
+        const history = messages
+          .filter((m) => !m.content.startsWith('__error__') && m.content !== 'Generating image…' && m.content !== '__streaming__')
+          .slice(-10)
+          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+        let accumulated = '';
+        await mgxClient.ai.gentxt({
+          messages: [
+            { role: 'system', content: sysMsg },
+            ...history,
+            { role: 'user', content: text },
+          ],
+          model: 'gemini-3.5-flash',
+          stream: true,
+          onChunk: (chunk: { content?: string }) => {
+            accumulated += chunk.content ?? '';
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: 'assistant', content: accumulated };
+              return updated;
+            });
+          },
+          onComplete: () => {
+            setGenerating(false);
+            setMessages((prev) => { persistHistory(prev); return prev; });
+          },
+          onError: () => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: 'assistant', content: '__error__Something went wrong — please try again.' };
+              return updated;
+            });
+            setGenerating(false);
+          },
+          timeout: 60000,
+        });
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err);
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: `__error__${msg}` };
+          return updated;
+        });
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // ── Image generation mode ───────────────────────────────────────────────
+
     // Has the AI already produced at least one image in this chat? If so this is a revision turn.
     const isRevisionTurn = messages.some(
       (m) => m.role === 'assistant' && m.imageUrl && !m.content.startsWith('__error__'),
@@ -869,17 +1012,9 @@ function ChatView({
     // On revision turns, send NO reference image so the backend doesn't attach the original
     // template to the current user turn (which overrides conversation history and makes Gemini
     // restart from the template instead of refining the last generated image).
-    // The pinned reference is kept in state for aspect ratio tracking only.
     const activeReference = isRevisionTurn ? null : (newPin ?? pinnedReference);
     const activeAspectRatio = newPin ? detectedAspectRatio : (pinnedAspectRatio || '1:1');
 
-    setInput('');
-    setImageAttachment(null);
-    setDetectedAspectRatio('1:1');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    setGenerating(true);
-
-    // Always generate an image — this workspace is for image creation only
     const loadingMsg: Message = { role: 'assistant', content: 'Generating image…' };
     setMessages((prev) => [...prev, loadingMsg]);
     try {
@@ -887,12 +1022,10 @@ function ChatView({
 
       let enrichedPrompt: string;
       if (newPin) {
-        // Fresh generation anchored to a newly uploaded template
         enrichedPrompt = basePrompt;
       } else if (isRevisionTurn) {
         enrichedPrompt = `${basePrompt}\n\nIMPORTANT: Apply this change to the LAST IMAGE you generated in this conversation. Do NOT start over from the original template — build on your most recent output and make only this specific change while keeping everything else identical.`;
       } else if (pinnedProducts.length > 0) {
-        // One or more product references pinned
         enrichedPrompt = buildEnrichedImagePrompt(basePrompt, chatState.brand, chatState.type);
       } else if (activeReference) {
         enrichedPrompt = basePrompt;
@@ -921,15 +1054,10 @@ function ChatView({
         enrichedPrompt += `\n\n=== ATTACHED IMAGE GUIDE ===\n${attachedImageLabels.join('\n\n')}`;
       }
 
-      // Brand brief always goes to the system instruction
       const brandBrief = buildBrandBrief(chatState.brand);
 
-      // Conversation history — strip loading/error states, cap at 6 recent turns.
-      // image_url is included so Gemini can see its previous output and refine it
-      // (same as Gemini web). The backend compresses each history image to ~300px
-      // before forwarding to the API, so payload stays small.
       const convHistory = messages
-        .filter((m) => !m.content.startsWith('__error__') && m.content !== 'Generating image…')
+        .filter((m) => !m.content.startsWith('__error__') && m.content !== 'Generating image…' && m.content !== '__streaming__')
         .slice(-6)
         .map((m) => ({
           role: m.role,
@@ -940,7 +1068,6 @@ function ChatView({
 
       const res = await axios.post('/api/v1/aihub/genimg', {
         prompt: enrichedPrompt,
-        // Always pass the pinned original reference — Gemini anchors every generation to it
         image: activeReference ?? undefined,
         messages: convHistory,
         brand_context: brandBrief || undefined,
@@ -960,9 +1087,8 @@ function ChatView({
       if (!imageUrl) throw new Error('No image returned');
       setMessages((prev) => {
         const updated = [...prev];
-        // Store the user's prompt as content (used for gallery title and sidebar)
-        // but keep it accessible for the save-to-gallery label.
         updated[updated.length - 1] = { role: 'assistant', content: text || basePrompt, imageUrl };
+        persistHistory(updated);
         return updated;
       });
     } catch (err: unknown) {
@@ -975,9 +1101,13 @@ function ChatView({
     } finally {
       setGenerating(false);
     }
-  }, [input, imageAttachment, generating, messages, chatState, systemPrompt]);
+  }, [input, imageAttachment, generating, messages, chatState, systemPrompt, outputMode, persistHistory]);
 
   const handleNewChat = () => {
+    if (messages.length > 0) {
+      kbSave(chatState, messages);
+      setSavedChats(kbLoad());
+    }
     setMessages([]);
     setInput('');
     setImageAttachment(null);
@@ -987,7 +1117,13 @@ function ChatView({
     setLayoutReference(null);
     setEnhancedPrompt('');
     setShowEnhanced(false);
+    setOutputMode('image');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    // Clear persisted DB history so next session starts fresh
+    if (chatState.brand.id) {
+      axios.post(`/api/v1/entities/brand_profiles/${chatState.brand.id}/chat`, { messages: [] })
+        .catch(() => {});
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1081,7 +1217,12 @@ function ChatView({
 
         <div className="border-t border-white/10 pt-4 mb-4 flex items-center justify-between">
           <button
-            onClick={onReset}
+            onClick={() => {
+              if (messages.length > 0) {
+                kbSave(chatState, messages);
+              }
+              onReset();
+            }}
             className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -1097,8 +1238,8 @@ function ChatView({
         </div>
 
         {messages.length > 0 && (
-          <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-            <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">History</p>
+          <div className="overflow-y-auto space-y-2 min-h-0 max-h-[160px]">
+            <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">This Chat</p>
             {messages.map((m, i) => (
               <div
                 key={i}
@@ -1108,11 +1249,52 @@ function ChatView({
                     : 'bg-white/5 text-white/50'
                 }`}
               >
-                {m.content.slice(0, 60)}{m.content.length > 60 ? '…' : ''}
+                {m.imageUrl ? '🖼 Image generated' : m.content.slice(0, 60)}{!m.imageUrl && m.content.length > 60 ? '…' : ''}
               </div>
             ))}
           </div>
         )}
+
+        {/* ── History (current brand only) ── */}
+        {(() => {
+          const brandHistory = savedChats.filter(sc => sc.brandName === chatState.brand.brand_name);
+          if (brandHistory.length === 0) return null;
+          return (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <button
+                onClick={() => setKbOpen(v => !v)}
+                className="flex items-center justify-between w-full mb-2"
+              >
+                <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                  History ({brandHistory.length})
+                </p>
+                <span className="text-white/30 text-[10px]">{kbOpen ? '▲' : '▼'}</span>
+              </button>
+              {kbOpen && (
+                <div className="space-y-2 overflow-y-auto max-h-[220px]">
+                  {brandHistory.map((sc) => (
+                    <div
+                      key={sc.id}
+                      className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-1 mb-1">
+                        <span className="text-[10px] text-white/30 shrink-0">{kbRelativeTime(sc.savedAt)}</span>
+                      </div>
+                      <p className="text-[10px] text-white/40 mb-1.5">{sc.typeLabel} · {sc.ai}{sc.imageCount > 0 ? ` · ${sc.imageCount} img` : ''}</p>
+                      <p className="text-[11px] text-white/60 leading-snug line-clamp-2 mb-2">{sc.preview}</p>
+                      <button
+                        onClick={() => onResumeChat(sc)}
+                        className="text-[11px] text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg px-2.5 py-1 transition-colors w-full text-center"
+                      >
+                        Resume
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Right chat area */}
@@ -1207,6 +1389,14 @@ function ChatView({
                         <Bookmark className={`h-3.5 w-3.5 ${m.saved ? 'fill-current' : ''}`} />
                         {m.saved ? 'Saved' : 'Save'}
                       </button>
+                      <button
+                        onClick={() => setEditingImageUrl(m.imageUrl!)}
+                        className="flex items-center gap-1 text-[12px] font-medium text-[#7c3aed] border border-[#ede9fe] bg-[#f5f3ff] rounded-lg px-2.5 py-1.5 hover:bg-[#ede9fe] transition-colors flex-shrink-0"
+                        title="Edit — add logo & text"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
                       <a
                         href={m.imageUrl}
                         download
@@ -1238,16 +1428,36 @@ function ChatView({
                             <p className="text-[13px] text-red-600">{m.content.slice(9)}</p>
                           </div>
                         </div>
+                      ) : m.role === 'user' ? (
+                        <div className="rounded-xl px-4 py-3 text-[14px] leading-relaxed bg-[#1e1e20] text-white whitespace-pre-wrap">
+                          {m.content}
+                        </div>
                       ) : (
-                        <div
-                          className={`rounded-xl p-4 text-[14px] leading-relaxed whitespace-pre-wrap ${
-                            m.role === 'user'
-                              ? 'bg-[#1e1e20] text-white'
-                              : 'bg-white border border-[#e2e2e2] text-[#1e1e20]'
-                          }`}
-                        >
-                          {m.content || (
+                        <div className="rounded-xl px-4 py-3 bg-white border border-[#e2e2e2] text-[#1e1e20]">
+                          {m.content === '__streaming__' || !m.content ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#595959]" />
+                          ) : (
+                            <Markdown
+                              options={{
+                                overrides: {
+                                  h1: { props: { className: 'text-[17px] font-bold mt-4 mb-2 first:mt-0' } },
+                                  h2: { props: { className: 'text-[15px] font-bold mt-4 mb-1.5 first:mt-0' } },
+                                  h3: { props: { className: 'text-[14px] font-semibold mt-3 mb-1 first:mt-0' } },
+                                  p:  { props: { className: 'text-[14px] leading-relaxed mb-2 last:mb-0' } },
+                                  ul: { props: { className: 'list-disc pl-5 mb-2 space-y-1 text-[14px]' } },
+                                  ol: { props: { className: 'list-decimal pl-5 mb-2 space-y-1 text-[14px]' } },
+                                  li: { props: { className: 'leading-relaxed' } },
+                                  strong: { props: { className: 'font-semibold' } },
+                                  em: { props: { className: 'italic' } },
+                                  blockquote: { props: { className: 'border-l-2 border-[#e2e2e2] pl-3 text-[#595959] my-2 italic text-[14px]' } },
+                                  hr: { props: { className: 'border-[#e2e2e2] my-3' } },
+                                  code: { props: { className: 'bg-[#f5f5f5] rounded px-1 py-0.5 text-[13px] font-mono' } },
+                                  pre: { props: { className: 'bg-[#f5f5f5] rounded-lg p-3 overflow-x-auto text-[13px] font-mono mb-2' } },
+                                },
+                              }}
+                            >
+                              {m.content}
+                            </Markdown>
                           )}
                         </div>
                       )
@@ -1293,12 +1503,34 @@ function ChatView({
                   <p className="text-[10px] font-semibold text-[#959595] uppercase tracking-wider mb-2">Original</p>
                   <p className="text-[13px] text-[#595959] leading-relaxed whitespace-pre-wrap">{input}</p>
                 </div>
-                {/* Enhanced */}
-                <div className="px-4 py-3">
-                  <p className="text-[10px] font-semibold text-[#7c3aed] uppercase tracking-wider mb-2">Enhanced</p>
-                  <p className="text-[13px] text-[#1e1e20] leading-relaxed whitespace-pre-wrap">
-                    {enhancedPrompt || (enhancing ? <span className="text-[#959595]">Generating…</span> : '')}
-                  </p>
+                {/* Enhanced — editable + copyable */}
+                <div className="px-4 py-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold text-[#7c3aed] uppercase tracking-wider">Enhanced</p>
+                    {enhancedPrompt && !enhancing && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(enhancedPrompt);
+                          setCopiedEnhanced(true);
+                          setTimeout(() => setCopiedEnhanced(false), 2000);
+                        }}
+                        className="flex items-center gap-1 text-[11px] text-[#595959] hover:text-[#1e1e20] transition-colors"
+                      >
+                        {copiedEnhanced ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                        {copiedEnhanced ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  {enhancing && !enhancedPrompt ? (
+                    <p className="text-[13px] text-[#959595]">Generating…</p>
+                  ) : (
+                    <textarea
+                      value={enhancedPrompt}
+                      onChange={(e) => setEnhancedPrompt(e.target.value)}
+                      className="w-full text-[13px] text-[#1e1e20] leading-relaxed bg-transparent resize-none outline-none min-h-[80px] max-h-[200px] overflow-y-auto"
+                      placeholder="Enhanced prompt will appear here…"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -1438,6 +1670,32 @@ function ChatView({
             </div>
           )}
 
+          {/* Output mode toggle */}
+          <div className="flex items-center gap-1 mb-3">
+            <button
+              onClick={() => setOutputMode('image')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                outputMode === 'image'
+                  ? 'bg-[#1e1e20] text-white'
+                  : 'bg-transparent text-[#595959] hover:text-[#1e1e20] hover:bg-[#f5f5f5]'
+              }`}
+            >
+              <ImagePlus className="h-3.5 w-3.5" />
+              Image
+            </button>
+            <button
+              onClick={() => setOutputMode('text')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                outputMode === 'text'
+                  ? 'bg-[#1e1e20] text-white'
+                  : 'bg-transparent text-[#595959] hover:text-[#1e1e20] hover:bg-[#f5f5f5]'
+              }`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Chat
+            </button>
+          </div>
+
           <div className="flex items-end gap-3">
             {/* Hidden file input */}
             <input
@@ -1447,25 +1705,30 @@ function ChatView({
               className="hidden"
               onChange={handleImageSelect}
             />
-            {/* Upload button */}
-            <button
-              onClick={() => imageInputRef.current?.click()}
-              disabled={generating}
-              className="flex items-center justify-center border border-[#e2e2e2] rounded-xl h-[48px] w-[48px] flex-shrink-0 text-[#595959] hover:text-[#1e1e20] hover:border-[#1e1e20] transition-colors disabled:opacity-30"
-              title="Attach an image"
-            >
-              <ImagePlus className="h-5 w-5" />
-            </button>
+            {/* Upload button — image mode only */}
+            {outputMode === 'image' && (
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={generating}
+                className="flex items-center justify-center border border-[#e2e2e2] rounded-xl h-[48px] w-[48px] flex-shrink-0 text-[#595959] hover:text-[#1e1e20] hover:border-[#1e1e20] transition-colors disabled:opacity-30"
+                title="Attach an image"
+              >
+                <ImagePlus className="h-5 w-5" />
+              </button>
+            )}
 
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => { setInput(e.target.value); adjustTextarea(); }}
               onKeyDown={handleKeyDown}
-              placeholder={`Describe the image you want to generate for ${chatState.brand.brand_name}…`}
+              placeholder={outputMode === 'image'
+                ? `Describe the image you want to generate for ${chatState.brand.brand_name}…`
+                : `Ask anything about ${chatState.brand.brand_name} — strategy, copy, ideas…`
+              }
               rows={1}
               className="flex-1 border border-[#e2e2e2] rounded-xl px-4 py-3 text-[14px] resize-none focus:outline-none focus:border-[#1e1e20] min-h-[48px] max-h-[120px] leading-relaxed"
-              style={{ overflow: 'hidden' }}
+              style={{ overflow: 'auto' }}
             />
             <button
               onClick={handleEnhancePrompt}
@@ -1492,6 +1755,14 @@ function ChatView({
       </div>
 
       {/* Lightbox */}
+      {editingImageUrl && (
+        <ImageEditorModal
+          imageUrl={editingImageUrl}
+          brand={chatState.brand}
+          onClose={() => setEditingImageUrl(null)}
+        />
+      )}
+
       {lightboxUrl && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
@@ -1523,6 +1794,7 @@ export default function AIWorkspacePage() {
   const [selectedBrand, setSelectedBrand] = useState<ExtendedProfile | null>(null);
   const [chatState, setChatState] = useState<ChatState | null>(null);
   const [resumeMessages, setResumeMessages] = useState<Message[] | undefined>(undefined);
+  const [chatKey, setChatKey] = useState(0);
 
   // Resume from gallery: location.state carries { chatState, messages } set by AssetGalleryPage
   useEffect(() => {
@@ -1572,10 +1844,24 @@ export default function AIWorkspacePage() {
     setResumeMessages(undefined);
   };
 
+  const handleResumeChat = (saved: SavedChat) => {
+    const typeEntry = CONTENT_TYPES.find(t => t.id === saved.chatState.type);
+    const resolved = { ...saved.chatState, typeLabel: typeEntry?.title ?? saved.chatState.typeLabel };
+    setResumeMessages(saved.messages as Message[]);
+    setChatState(resolved);
+    setChatKey(k => k + 1); // force ChatView remount so initialMessages is applied fresh
+  };
+
   return (
     <SidebarLayout>
       {chatState ? (
-        <ChatView chatState={chatState} onReset={handleReset} initialMessages={resumeMessages} />
+        <ChatView
+          key={chatKey}
+          chatState={chatState}
+          onReset={handleReset}
+          initialMessages={resumeMessages}
+          onResumeChat={handleResumeChat}
+        />
       ) : (
         <BrandListView onOpenChat={handleOpenChat} />
       )}

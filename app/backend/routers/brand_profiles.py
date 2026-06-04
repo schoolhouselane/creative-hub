@@ -470,3 +470,62 @@ async def list_brand_files_endpoint(
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     return {"brand_id": id, "files": list_brand_files(id, brand.brand_name)}
+
+# ─── Brand Chat History (persistent project memory) ────────────────────────────
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+    image_url: Optional[str] = None
+    attached_image: Optional[str] = None
+    saved: Optional[bool] = None
+
+
+class SaveChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+
+@router.get("/{id}/chat")
+async def get_brand_chat(
+    id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Load the persistent chat history for a brand (the 'project memory')."""
+    service = Brand_profilesService(db)
+    brand = await service.get_by_id(id, user_id=str(current_user.id))
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    try:
+        messages = json.loads(brand.chat_history or "[]")
+    except Exception:
+        messages = []
+    return {"brand_id": id, "messages": messages}
+
+
+@router.post("/{id}/chat")
+async def save_brand_chat(
+    id: int,
+    body: SaveChatRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Persist the full chat history for a brand after each exchange."""
+    service = Brand_profilesService(db)
+    brand = await service.get_by_id(id, user_id=str(current_user.id))
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+
+    # Strip base64 image data from history before saving — store URL references only.
+    # This keeps the stored JSON small; product/layout images are re-fetched from brand_dna.
+    clean = []
+    for m in body.messages:
+        clean.append({
+            "role": m.role,
+            "content": m.content,
+            "image_url": m.image_url if (m.image_url and not m.image_url.startswith("data:")) else None,
+            "saved": m.saved,
+        })
+
+    await service.update(id, {"chat_history": json.dumps(clean)}, user_id=str(current_user.id))
+    return {"success": True, "message_count": len(clean)}

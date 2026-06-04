@@ -21,5 +21,6 @@ class Brand_profiles(Base):
     industry = Column(String, nullable=True)
     guidelines_notes = Column(String, nullable=True)
     brand_dna = Column(Text, nullable=True)
+    chat_history = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now)
     updated_at = Column(DateTime(timezone=True), default=datetime.now, onupdate=datetime.now)
