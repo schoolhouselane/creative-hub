@@ -1,4 +1,4 @@
-# Creative Hub — Product Brief
+# Creative Room — Product Brief
 
 **Prepared by:** Schoolhouse Lane
 **Updated:** June 2026
@@ -6,9 +6,9 @@
 
 ---
 
-## What Is Creative Hub?
+## What Is Creative Room?
 
-Creative Hub is Schoolhouse Lane's internal AI-powered platform for brand content production. It replaces scattered AI tools, emails, and shared drives with one workspace where the team manages brand identities, generates on-brand assets using multiple AI models, and iterates on results.
+Creative Room is Schoolhouse Lane's internal AI-powered platform for brand content production. It replaces scattered AI tools, emails, and shared drives with one workspace where the team manages brand identities, generates on-brand assets using multiple AI models, and iterates on results.
 
 ---
 
@@ -20,7 +20,7 @@ Creating brand-accurate AI imagery requires:
 - Using the right AI model for the right task
 - Handling logo placement accurately (AI can't reproduce logos)
 
-Creative Hub automates all of this.
+Creative Room automates all of this.
 
 ---
 

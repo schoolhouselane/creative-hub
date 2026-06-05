@@ -1,4 +1,4 @@
-# Creative Hub — Product Overview
+# Creative Room — Product Overview
 
 **Schoolhouse Lane**
 **June 2026**
@@ -7,9 +7,9 @@
 
 ---
 
-## What Is Creative Hub?
+## What Is Creative Room?
 
-Creative Hub is Schoolhouse Lane's AI-powered platform for producing brand-accurate creative assets at scale.
+Creative Room is Schoolhouse Lane's AI-powered platform for producing brand-accurate creative assets at scale.
 
 It connects directly to Gemini, Flux, Grok, and ElevenLabs. Every tool is brand-aware — brand colours, typography, visual style, and trained product models are automatically applied to every generation. No manual prompt engineering required.
 

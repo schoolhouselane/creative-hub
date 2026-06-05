@@ -1,4 +1,4 @@
-# Creative Hub — System Architecture
+# Creative Room — System Architecture
 
 **Version:** 3.0
 **Updated:** June 2026
@@ -9,7 +9,7 @@
 
 ## 1. What This System Is
 
-Creative Hub is Schoolhouse Lane's AI-powered creative operations platform. It combines brand management, multi-model AI image generation, a conversational creative assistant, LoRA model training per product, and a training feedback loop into one tool.
+Creative Room is Schoolhouse Lane's AI-powered creative operations platform. It combines brand management, multi-model AI image generation, a conversational creative assistant, LoRA model training per product, and a training feedback loop into one tool.
 
 ---
 

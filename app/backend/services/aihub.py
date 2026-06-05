@@ -1160,7 +1160,7 @@ User instruction:
                 import urllib.request
                 req = urllib.request.Request(
                     image_ref,
-                    headers={"User-Agent": "CreativeHub/1.0"},
+                    headers={"User-Agent": "CreativeRoom/1.0"},
                 )
                 with urllib.request.urlopen(req, timeout=30) as r:
                     img_bytes = r.read()
@@ -1938,7 +1938,7 @@ User instruction:
             audio_ref = (request.audio or "").strip()
             if audio_ref.startswith(("http://", "https://")):
                 async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as http:
-                    r = await http.get(audio_ref, headers={"User-Agent": "Mozilla/5.0 (compatible; CreativeHub/1.0)"})
+                    r = await http.get(audio_ref, headers={"User-Agent": "Mozilla/5.0 (compatible; CreativeRoom/1.0)"})
                     r.raise_for_status()
                     audio_bytes = r.content
                     ct = r.headers.get("content-type", "audio/mpeg").split(";")[0].strip()
