@@ -534,7 +534,7 @@ function OpenChatModal({
 
           {/* Select Type */}
           <p className="font-bold text-[16px] text-white mb-3 mt-4">Select Type</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {CONTENT_TYPES.map((ct) => {
               const Icon = ct.icon;
               const active = selectedType === ct.id;
@@ -560,7 +560,7 @@ function OpenChatModal({
 
           {/* Select AI */}
           <p className="font-bold text-[16px] text-white mb-3 mt-6">Select AI</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {AI_OPTIONS.map((ai) => {
               const active = selectedAi === ai;
               return (
@@ -619,11 +619,11 @@ function BrandListView({ onOpenChat }: { onOpenChat: (brand: ExtendedProfile) =>
   }, []);
 
   return (
-    <div className="min-h-full bg-[#f5f3ef] px-8 py-8">
+    <div className="min-h-full bg-[#f5f3ef] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="font-bold text-[48px] text-[#1e1e20] leading-tight">AI Workspace</h1>
+          <h1 className="font-bold text-[32px] sm:text-[40px] lg:text-[48px] text-[#1e1e20] leading-tight">AI Workspace</h1>
           <p className="text-[16px] text-[#595959] mt-2">
             Chat directly with AI tools using brand-aware context.
           </p>
@@ -684,9 +684,9 @@ function BrandRow({
     : 'linear-gradient(135deg, #7c3aed, #06b6d4)';
 
   return (
-    <div className="bg-white rounded-xl p-5 flex items-center gap-5">
+    <div className="bg-white rounded-xl p-4 sm:p-5 flex items-center gap-3 sm:gap-5">
       <div
-        className="w-[114px] h-[67px] rounded-lg flex-shrink-0 relative flex items-center justify-center overflow-hidden"
+        className="w-[80px] sm:w-[114px] h-[54px] sm:h-[67px] rounded-lg flex-shrink-0 relative flex items-center justify-center overflow-hidden"
         style={{ background: thumbnailBg }}
       >
         {brand.logo_url && (
@@ -1307,9 +1307,9 @@ function ChatView({
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] gap-4 p-4 bg-[#f5f3ef]">
-      {/* Left sidebar */}
-      <div className="w-[280px] flex-shrink-0 bg-[#1e1e20] rounded-2xl p-6 flex flex-col overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] gap-4 p-2 sm:p-4 bg-[#f5f3ef]">
+      {/* Left sidebar — hidden on mobile, visible on lg+ */}
+      <div className="hidden lg:flex w-[280px] flex-shrink-0 bg-[#1e1e20] rounded-2xl p-6 flex-col overflow-hidden">
         <div className="mb-4">
           <p className="font-bold text-white text-[18px] leading-tight truncate">
             {chatState.brand.brand_name}

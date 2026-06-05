@@ -1086,9 +1086,9 @@ export default function BrandsPage() {
     <SidebarLayout>
       <div className="min-h-full bg-[#f5f3ef] p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 className="text-[32px] font-bold text-[#1e1e20] leading-tight">Brand Management</h1>
+            <h1 className="text-[28px] sm:text-[32px] font-bold text-[#1e1e20] leading-tight">Brand Management</h1>
             <p className="mt-1 text-[15px] text-[#595959]">
               Manage brand guidelines and assets for all your clients.
             </p>
@@ -1108,8 +1108,8 @@ export default function BrandsPage() {
         <QuickUploadZone onCreated={fetchProfiles} />
 
         {/* Toolbar */}
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1 max-w-xs">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               value={search}
@@ -1209,14 +1209,14 @@ export default function BrandsPage() {
                   <p className="font-semibold text-[#1e1e20] truncate">{profile.brand_name}</p>
                   <p className="text-xs text-[#908f8e]">{profile.industry || 'Brand DNA'}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-2">
                   {[profile.primary_color, profile.secondary_color, profile.accent_color]
                     .filter(Boolean)
                     .map((c, i) => (
                       <div key={i} className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: c }} />
                     ))}
                 </div>
-                <span className="shrink-0 text-xs text-gray-400 ml-4">
+                <span className="hidden sm:block shrink-0 text-xs text-gray-400 ml-4">
                   {formatDate((profile as any).created_at)}
                 </span>
                 {isAdmin && (

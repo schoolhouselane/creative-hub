@@ -136,13 +136,13 @@ export default function PromptLibraryPage() {
 
   return (
     <SidebarLayout>
-      <div className="min-h-screen bg-[#f5f3ef] px-8 py-8">
+      <div className="min-h-screen bg-[#f5f3ef] px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 sm:mb-0">
           <div>
             <h1
-              className="font-bold text-[#1e1e20] leading-tight"
-              style={{ fontSize: '48px', fontFamily: 'Inter, sans-serif' }}
+              className="font-bold text-[#1e1e20] leading-tight text-[32px] sm:text-[40px] lg:text-[48px]"
+              style={{ fontFamily: 'Inter, sans-serif' }}
             >
               Prompt Library
             </h1>
@@ -230,11 +230,11 @@ export default function PromptLibraryPage() {
         </div>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-3 mt-6 mb-6">
+        <div className="flex flex-wrap items-center gap-3 mt-6 mb-6">
           {/* Search */}
           <div
-            className="flex items-center gap-2 bg-white rounded-lg px-3 py-2"
-            style={{ width: '307px', height: '36px' }}
+            className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 flex-1 min-w-[180px]"
+            style={{ maxWidth: '307px', height: '36px' }}
           >
             <Search size={18} className="text-[#1e1e20] flex-shrink-0" />
             <input
@@ -296,7 +296,7 @@ export default function PromptLibraryPage() {
           <div
             className={
               viewMode === 'grid'
-                ? 'grid grid-cols-2 gap-4'
+                ? 'grid grid-cols-1 sm:grid-cols-2 gap-4'
                 : 'flex flex-col gap-4'
             }
           >
@@ -309,7 +309,7 @@ export default function PromptLibraryPage() {
               />
             ))}
             {filteredPrompts.length === 0 && (
-              <p className="col-span-2 text-center text-[#595959] py-12">
+              <p className="col-span-1 sm:col-span-2 text-center text-[#595959] py-12">
                 No prompts match your search.
               </p>
             )}

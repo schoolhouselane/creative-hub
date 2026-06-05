@@ -55,7 +55,7 @@ export default function Index() {
         {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-          <p className="mt-1 text-slate-400">Welcome to SHL Creative Hub — your AI-powered design command center.</p>
+          <p className="mt-1 text-slate-400">Welcome to Schoolhouse Creative Room — your AI-powered design command center.</p>
         </div>
 
         {/* Stats Grid */}

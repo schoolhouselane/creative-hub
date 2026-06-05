@@ -154,8 +154,8 @@ export default function AssetGalleryPage() {
 
   return (
     <SidebarLayout>
-      <div className="min-h-screen bg-[#f5f3ef] px-8 py-10">
-        <h1 className="font-bold text-[48px] leading-tight text-[#1e1e20]" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700 }}>
+      <div className="min-h-screen bg-[#f5f3ef] px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        <h1 className="font-bold text-[32px] sm:text-[40px] lg:text-[48px] leading-tight text-[#1e1e20]" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700 }}>
           Asset Gallery
         </h1>
         <p className="text-[16px] text-[#595959] mt-2">
@@ -163,17 +163,17 @@ export default function AssetGalleryPage() {
         </p>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-3 mt-6 mb-6">
+        <div className="flex flex-wrap items-center gap-3 mt-6 mb-6">
           {/* Search */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center flex-1 min-w-[180px]">
             <Search size={14} className="absolute left-3 text-[#908f8e] pointer-events-none" />
             <input
               type="text"
               placeholder="Search assets..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-white rounded-full pl-9 pr-4 py-2 text-[14px] text-[#595959] font-light border border-[#e2e2e2] outline-none focus:ring-2 focus:ring-[#1e1e20]/10"
-              style={{ width: '307px', height: '36px' }}
+              className="w-full bg-white rounded-full pl-9 pr-4 py-2 text-[14px] text-[#595959] font-light border border-[#e2e2e2] outline-none focus:ring-2 focus:ring-[#1e1e20]/10"
+              style={{ maxWidth: '307px', height: '36px' }}
             />
           </div>
 
@@ -256,7 +256,7 @@ export default function AssetGalleryPage() {
 
         {/* Loading skeletons */}
         {loading && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 9 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
@@ -292,7 +292,7 @@ export default function AssetGalleryPage() {
 
         {/* Grid view */}
         {!loading && filtered.length > 0 && viewMode === 'grid' && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(asset => (
               <div key={asset.id} className="bg-white rounded-xl overflow-hidden">
                 <AssetPreview asset={asset} />
@@ -391,14 +391,14 @@ export default function AssetGalleryPage() {
                   </div>
                   <p className="text-[12px] text-[#908f8e] mt-1">Added {formatDate(asset.created_at)}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                   {asset.chat_history && (
                     <button
                       onClick={() => handleContinue(asset)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1e1e20] text-white text-[13px] rounded-lg hover:bg-[#333]"
                     >
                       <MessageSquare size={13} />
-                      Continue
+                      <span className="hidden sm:inline">Continue</span>
                     </button>
                   )}
                   {asset.url && asset.asset_type !== 'text' && (
@@ -408,7 +408,7 @@ export default function AssetGalleryPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e2e2e2] rounded-lg text-[13px] text-[#1e1e20] hover:bg-[#f5f3ef]"
                     >
                       <Download size={13} />
-                      Download
+                      <span className="hidden sm:inline">Download</span>
                     </a>
                   )}
                   <button

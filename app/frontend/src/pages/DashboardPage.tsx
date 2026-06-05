@@ -60,11 +60,11 @@ export default function DashboardPage() {
     <SidebarLayout>
       <div className="flex min-h-screen flex-col">
       {/* ── Dark header ─────────────────────────────────────────── */}
-      <div className="bg-[#1e1e20] px-10 pb-8 pt-10">
+      <div className="bg-[#1e1e20] px-4 sm:px-6 lg:px-10 pb-6 lg:pb-8 pt-6 lg:pt-10">
 
         {/* Title */}
         <div className="mb-6">
-          <h1 className="text-[48px] font-bold leading-tight text-white">Dashboard</h1>
+          <h1 className="text-[32px] sm:text-[40px] lg:text-[48px] font-bold leading-tight text-white">Dashboard</h1>
           <p className="mt-1 text-[16px] text-white">Welcome back! Here's your creative overview.</p>
         </div>
 
@@ -81,7 +81,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats + Quick Actions */}
-        <div className="flex gap-5">
+        <div className="flex flex-col sm:flex-row gap-5">
 
           {/* Stats 2×2 */}
           <div className="shrink-0 rounded-[30px] bg-[rgba(245,243,239,0.2)] p-5">
@@ -106,7 +106,7 @@ export default function DashboardPage() {
           {/* Quick Actions */}
           <div className="flex-1 rounded-[30px] bg-[rgba(245,243,239,0.2)] p-5">
             <p className="mb-4 text-[20px] font-bold text-white">Quick Actions</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action.label}
@@ -124,8 +124,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Light content area ──────────────────────────────────── */}
-      <div className="flex-1 bg-[#f5f3ef] px-10 py-8">
-        <div className="flex gap-8">
+      <div className="flex-1 bg-[#f5f3ef] px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
 
           {/* Client Brands */}
           <div className="flex-1 min-w-0">
@@ -154,7 +154,7 @@ export default function DashboardPage() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[0, 1, 2, 3].map((i) => (
                   <div key={i} className="h-[260px] animate-pulse rounded-[13px] bg-white/60" />
                 ))}
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-4' : 'flex flex-col gap-3'}>
+              <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'flex flex-col gap-3'}>
                 {displayedBrands.map((brand) => {
                   const initials = brand.brand_name
                     .split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -211,7 +211,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="w-[391px] shrink-0 rounded-[30px] bg-[#ede9e3] p-8">
+          <div className="w-full lg:w-[391px] shrink-0 rounded-[30px] bg-[#ede9e3] p-4 sm:p-6 lg:p-8">
             <h3 className="mb-6 text-[18px] font-bold text-[#1e1e20]">Recent Activity</h3>
             <div className="relative pl-5">
               <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-[#e2e2e2] rounded-full" />

@@ -423,7 +423,7 @@ export default function BrandDetailPage() {
 
         {/* Tab content */}
         {activeTab === 'dna' && (
-          <div className="p-6 lg:p-8">
+          <div className="p-4 sm:p-6 lg:p-8">
             {/* Admin notice */}
             {!isAdmin && (
               <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -432,7 +432,7 @@ export default function BrandDetailPage() {
               </div>
             )}
 
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid gap-5 grid-cols-1 lg:grid-cols-2">
               {/* Typography & Voice */}
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center gap-2">
@@ -994,7 +994,7 @@ function CategoryCard({
       )}
 
       {/* Image grid */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
         {category.images.map((img, i) => (
           <div key={i} className="group relative rounded-xl overflow-hidden border border-gray-200 shadow-sm">
             <div
@@ -1427,7 +1427,7 @@ function LayoutReferenceLibrary({
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {refs.map((ref, i) => (
           <div key={i} className="group relative rounded-xl overflow-hidden border border-gray-100 shadow-sm">
             <img src={ref.url} alt={ref.name} className="h-[120px] w-full object-cover" />
@@ -1603,7 +1603,7 @@ function GuidelinesTab({
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             <p className="text-[13px] font-semibold text-[#1e1e20] uppercase tracking-wider">Extracted Brand DNA</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {Object.entries(dna)
               .filter(([, v]) => v && (typeof v === 'string' ? v.trim() : (Array.isArray(v) ? v.length > 0 : true)))
               .map(([key, value]) => (

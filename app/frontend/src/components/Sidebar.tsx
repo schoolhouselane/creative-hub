@@ -137,7 +137,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <span className="font-bold text-white">Creative Hub</span>
+          <span className="font-bold text-white">Schoolhouse Creative Room</span>
         </div>
 
         {/* Page Content */}
