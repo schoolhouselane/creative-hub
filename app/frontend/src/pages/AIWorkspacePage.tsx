@@ -10,6 +10,7 @@ import {
   Smartphone, Play, Paintbrush, Megaphone, Mail, Monitor,
   ChevronDown, LayoutGrid, List, Send, Loader2, ArrowLeft, ArrowRight,
   MessageSquare, Download, Bookmark, Sparkles, Trash2, ImagePlus, X, Copy, Check, Pencil,
+  ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Markdown from 'markdown-to-jsx';
@@ -17,6 +18,36 @@ import ImageEditorModal from '@/components/ImageEditorModal';
 import { type BrandProfile } from '@/lib/briefTypes';
 
 const mgxClient = createClient();
+
+// ─── Feedback types ─────────────────────────────────────────────────────────────
+
+interface FeedbackItem {
+  id: string;
+  image_url: string;
+  prompt: string;
+  ai_tool: string;
+  type: 'approved' | 'rejected';
+  reason?: string;
+  timestamp: string;
+  brand_id: number;
+}
+
+async function compressImageForFeedback(url: string): Promise<string> {
+  if (!url.startsWith('data:')) return url; // already a CDN URL, use as-is
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 600 / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.80));
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
 
 function getErrorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
@@ -73,7 +104,7 @@ const CONTENT_TYPES: ContentType[] = [
   { id: 'web', icon: Monitor, title: 'Website / App', sub: 'UI mockups, hero images, icons' },
 ];
 
-const AI_OPTIONS = ['Claude AI', 'Flux Pro', 'Midjourney', 'DALL-E 3', 'Gemini Pro', 'HeyGen'];
+const AI_OPTIONS = ['Gemini Pro', 'Flux Pro', 'Grok Image', 'Claude AI', 'DALL-E 3', 'Midjourney', 'HeyGen'];
 
 const AI_MODELS: Record<string, string> = {
   'Claude AI': 'gemini-3.5-flash',
@@ -82,7 +113,12 @@ const AI_MODELS: Record<string, string> = {
   'DALL-E 3': 'openai/dall-e-3',
   'Gemini Pro': 'gemini-3.5-flash',
   'HeyGen': 'heygen',
+  'Grok Image': 'xai/grok-imagine-image',
 };
+
+// Which AI tools use Flux (fal.ai) for image generation
+const FLUX_AIS = new Set(['Flux Pro']);
+const GROK_AIS = new Set(['Grok Image']);
 
 const IMAGE_VIDEO_AIS = new Set(['Flux Pro', 'Midjourney', 'DALL-E 3', 'HeyGen']);
 
@@ -304,22 +340,29 @@ function kbLoad(): SavedChat[] {
 
 function kbSave(state: ChatState, msgs: Message[]): void {
   if (msgs.length === 0) return;
-  const prev = kbLoad();
-  const first = msgs.find(m => m.role === 'user')?.content ?? 'Chat session';
-  // strip base64 blobs before persisting to keep localStorage lean
-  const clean = msgs.map(({ attachedImage: _drop, ...m }) => m);
-  const entry: SavedChat = {
-    id: Date.now().toString(),
-    brandName: state.brand.brand_name,
-    typeLabel: state.typeLabel,
-    ai: state.ai,
-    preview: first.slice(0, 100),
-    imageCount: msgs.filter(m => m.imageUrl).length,
-    messages: clean,
-    chatState: state,
-    savedAt: new Date().toISOString(),
-  };
-  localStorage.setItem(KB_KEY, JSON.stringify([entry, ...prev].slice(0, 5)));
+  try {
+    const prev = kbLoad();
+    const first = msgs.find(m => m.role === 'user')?.content ?? 'Chat session';
+    // Strip all base64 blobs — keep only HTTP URLs to stay within localStorage limits
+    const clean = msgs.map(({ attachedImage: _a, ...m }) => ({
+      ...m,
+      imageUrl: m.imageUrl?.startsWith('data:') ? undefined : m.imageUrl,
+    }));
+    const entry: SavedChat = {
+      id: Date.now().toString(),
+      brandName: state.brand.brand_name,
+      typeLabel: state.typeLabel,
+      ai: state.ai,
+      preview: first.slice(0, 100),
+      imageCount: msgs.filter(m => m.imageUrl).length,
+      messages: clean,
+      chatState: state,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(KB_KEY, JSON.stringify([entry, ...prev].slice(0, 5)));
+  } catch {
+    // localStorage quota exceeded — skip saving sidebar history
+  }
 }
 
 function kbRelativeTime(iso: string): string {
@@ -342,6 +385,16 @@ function formatDate(dateStr?: string) {
   } catch {
     return '13.05.2026';
   }
+}
+
+function getLoraInfo(brand: BrandProfile): { loraUrl: string; triggerWord: string } | null {
+  try {
+    const dna = JSON.parse((brand as any).brand_dna ?? '{}');
+    if (dna.lora_status === 'COMPLETED' && dna.lora_url) {
+      return { loraUrl: dna.lora_url as string, triggerWord: (dna.lora_trigger_word as string) || '' };
+    }
+  } catch { /**/ }
+  return null;
 }
 
 function buildSystemPrompt(brand: BrandProfile, type: string, _ai: string): string {
@@ -739,6 +792,7 @@ function ChatView({
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, boolean>>({});
   const [enhancing, setEnhancing] = useState(false);
   const [enhancedPrompt, setEnhancedPrompt] = useState('');
   const [showEnhanced, setShowEnhanced] = useState(false);
@@ -753,6 +807,7 @@ function ChatView({
   const [layoutReference, setLayoutReference] = useState<string | null>(null);
   const [outputMode, setOutputMode] = useState<'image' | 'text'>('image');
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+  const [aiEditingPrompt, setAiEditingPrompt] = useState<string>('');  // label shown when AI editing
   const [savedChats, setSavedChats] = useState<SavedChat[]>(() => kbLoad());
   const [kbOpen, setKbOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -767,6 +822,8 @@ function ChatView({
   // Load persistent chat history for this brand on mount
   useEffect(() => {
     if (!chatState.brand.id) return;
+    // Skip loading persisted history when resuming from gallery — initialMessages already set
+    if (initialMessages && initialMessages.length > 0) return;
     axios.get(`/api/v1/entities/brand_profiles/${chatState.brand.id}/chat`)
       .then((res) => {
         const loaded: Message[] = (res.data?.messages ?? []).map((m: Record<string, unknown>) => ({
@@ -827,6 +884,41 @@ function ChatView({
       toast.success('Saved to gallery!');
     } catch (err: unknown) {
       toast.error(getErrorMessage(err));
+    }
+  };
+
+  const handleFeedback = async (msg: Message, _msgIdx: number, type: 'approved' | 'rejected') => {
+    if (!msg.imageUrl || !chatState.brand.id) return;
+    const key = `${msg.imageUrl}-${type === 'approved' ? 'like' : 'dislike'}`;
+    setFeedbackGiven(prev => ({ ...prev, [key]: true }));
+
+    // Compress the image for storage
+    let storedUrl = msg.imageUrl;
+    try { storedUrl = await compressImageForFeedback(msg.imageUrl); } catch { /**/ }
+
+    const item: FeedbackItem = {
+      id: Date.now().toString(),
+      image_url: storedUrl,
+      prompt: msg.content,
+      ai_tool: chatState.ai,
+      type,
+      timestamp: new Date().toISOString(),
+      brand_id: chatState.brand.id as number,
+    };
+
+    // Save to brand_dna.training_feedback
+    try {
+      const res = await axios.get(`/api/v1/entities/brand_profiles/${chatState.brand.id}`);
+      let dna: Record<string, unknown> = {};
+      try { dna = JSON.parse(res.data.brand_dna ?? '{}'); } catch { /**/ }
+      const existing = Array.isArray(dna.training_feedback) ? dna.training_feedback as FeedbackItem[] : [];
+      dna.training_feedback = [item, ...existing].slice(0, 200); // keep last 200
+      await axios.put(`/api/v1/entities/brand_profiles/${chatState.brand.id}`, {
+        brand_dna: JSON.stringify(dna),
+      });
+      toast.success(type === 'approved' ? '👍 Added to training data' : '👎 Feedback recorded');
+    } catch {
+      toast.error('Failed to save feedback');
     }
   };
 
@@ -1012,7 +1104,9 @@ function ChatView({
     // On revision turns, send NO reference image so the backend doesn't attach the original
     // template to the current user turn (which overrides conversation history and makes Gemini
     // restart from the template instead of refining the last generated image).
-    const activeReference = isRevisionTurn ? null : (newPin ?? pinnedReference);
+    // AI Edit mode always pins the reference — even across revision turns
+    const isAiEdit = Boolean(aiEditingPrompt) && Boolean(pinnedReference) && !newPin;
+    const activeReference = isAiEdit ? pinnedReference : (isRevisionTurn ? null : (newPin ?? pinnedReference));
     const activeAspectRatio = newPin ? detectedAspectRatio : (pinnedAspectRatio || '1:1');
 
     const loadingMsg: Message = { role: 'assistant', content: 'Generating image…' };
@@ -1020,9 +1114,28 @@ function ChatView({
     try {
       const basePrompt = text || 'Create a professional marketing image in the same style as the reference';
 
+      const isFluxSelected = FLUX_AIS.has(chatState.ai);
+      const isGrokSelected = GROK_AIS.has(chatState.ai);
       let enrichedPrompt: string;
-      if (newPin) {
+      const isAiEditMode = Boolean(aiEditingPrompt) && Boolean(pinnedReference) && !newPin;
+
+      if (isFluxSelected || isGrokSelected) {
+        // Flux LoRA / Grok: NEVER inject brand colours — the LoRA already knows the product.
+        // Brand DNA colour injection (primary_color: #502C12) overrides what the LoRA learned.
         enrichedPrompt = basePrompt;
+      } else if (newPin) {
+        enrichedPrompt = basePrompt;
+      } else if (isAiEditMode) {
+        // AI Edit mode: force Gemini into edit-only mode, never regenerate from scratch
+        enrichedPrompt = (
+          `EDIT THIS EXACT IMAGE — do NOT generate a new image from scratch.\n` +
+          `The reference image is attached. Apply ONLY this specific change:\n\n` +
+          `"${basePrompt}"\n\n` +
+          `Keep EVERYTHING else absolutely identical: subject, pose, composition, ` +
+          `background, lighting direction, clothing, bike, all details. ` +
+          `Only modify exactly what was requested above. ` +
+          `Output the same image with only that one change applied.`
+        );
       } else if (isRevisionTurn) {
         enrichedPrompt = `${basePrompt}\n\nIMPORTANT: Apply this change to the LAST IMAGE you generated in this conversation. Do NOT start over from the original template — build on your most recent output and make only this specific change while keeping everything else identical.`;
       } else if (pinnedProducts.length > 0) {
@@ -1066,25 +1179,78 @@ function ChatView({
           attached_image: null,
         }));
 
-      const res = await axios.post('/api/v1/aihub/genimg', {
-        prompt: enrichedPrompt,
-        image: activeReference ?? undefined,
-        messages: convHistory,
-        brand_context: brandBrief || undefined,
-        product_images: (() => {
-          const imgs = [
-            ...pinnedProducts.map((p) => p.url),
-            ...(layoutReference ? [layoutReference] : []),
-          ];
-          return imgs.length > 0 ? imgs : undefined;
-        })(),
-        model: 'gemini-3-pro-image',
-        size: activeAspectRatio,
-        quality: 'hd',
-        n: 1,
-      });
-      const imageUrl: string = res.data?.images?.[0] ?? res.data?.url ?? '';
+      // Route to correct image engine — respects the user's AI selection
+      const lora = getLoraInfo(chatState.brand);
+      let imageUrl = '';
+
+      if (isFluxSelected && lora) {
+        // Flux Pro + trained LoRA = best product accuracy
+        const promptWithTrigger = lora.triggerWord
+          ? `${lora.triggerWord} ${enrichedPrompt}`
+          : enrichedPrompt;
+        const loraRes = await axios.post('/api/v1/aihub/genimg-lora', {
+          prompt: promptWithTrigger,
+          lora_url: lora.loraUrl,
+          size: activeAspectRatio === '1:1' ? 'square_hd' : activeAspectRatio,
+        }, { timeout: 180000 });
+        imageUrl = loraRes.data?.images?.[0] ?? '';
+      } else if (isFluxSelected) {
+        // Flux Pro without LoRA
+        const fluxRes = await axios.post('/api/v1/aihub/genimg-flux', {
+          prompt: enrichedPrompt,
+          size: activeAspectRatio === '1:1' ? 'square_hd' : activeAspectRatio,
+          model: 'flux-pro',
+        }, { timeout: 180000 });
+        imageUrl = fluxRes.data?.images?.[0] ?? '';
+      } else if (isGrokSelected) {
+        // Grok Image — vision bridge: actual product images sent to Gemini Vision
+        // for description, then those precise descriptions are injected into Grok's prompt
+        const grokProductImages = [
+          ...pinnedProducts.map(p => p.url),
+          ...(layoutReference ? [layoutReference] : []),
+        ];
+        const grokRes = await axios.post('/api/v1/aihub/genimg-grok', {
+          prompt: enrichedPrompt,
+          size: activeAspectRatio === '1:1' ? 'square_hd' : activeAspectRatio,
+          brand_context: brandBrief || undefined,
+          product_images: grokProductImages.length > 0 ? grokProductImages : undefined,
+        }, { timeout: 180000 });
+        imageUrl = grokRes.data?.images?.[0] ?? '';
+      } else {
+        // Gemini — supports reference images and conversation history
+        const res = await axios.post('/api/v1/aihub/genimg', {
+          prompt: enrichedPrompt,
+          image: activeReference ?? undefined,
+          messages: convHistory,
+          brand_context: brandBrief || undefined,
+          product_images: (() => {
+            const imgs = [
+              ...pinnedProducts.map((p) => p.url),
+              ...(layoutReference ? [layoutReference] : []),
+            ];
+            return imgs.length > 0 ? imgs : undefined;
+          })(),
+          model: 'gemini-3-pro-image',
+          size: activeAspectRatio,
+          quality: 'hd',
+          n: 1,
+        });
+        imageUrl = res.data?.images?.[0] ?? res.data?.url ?? '';
+      }
       if (!imageUrl) throw new Error('No image returned');
+      // If Gemini returned a base64 data URI, upload it to get a stable HTTP URL
+      // so the image persists across page reloads (base64 URIs are stripped from DB)
+      if (imageUrl.startsWith('data:') && chatState.brand.id) {
+        try {
+          const uploadRes = await axios.post(
+            `/api/v1/entities/brand_profiles/${chatState.brand.id}/save-image`,
+            { data_uri: imageUrl },
+          );
+          if (uploadRes.data?.url) imageUrl = uploadRes.data.url;
+        } catch {
+          // Upload failed — keep the data URI so it at least shows in this session
+        }
+      }
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = { role: 'assistant', content: text || basePrompt, imageUrl };
@@ -1116,6 +1282,7 @@ function ChatView({
     setPinnedProducts([]);
     setLayoutReference(null);
     setEnhancedPrompt('');
+    setAiEditingPrompt('');
     setShowEnhanced(false);
     setOutputMode('image');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -1221,6 +1388,11 @@ function ChatView({
               if (messages.length > 0) {
                 kbSave(chatState, messages);
               }
+              // Clear DB history so re-entering the same brand starts fresh
+              if (chatState.brand.id) {
+                axios.post(`/api/v1/entities/brand_profiles/${chatState.brand.id}/chat`, { messages: [] })
+                  .catch(() => {});
+              }
               onReset();
             }}
             className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
@@ -1313,7 +1485,11 @@ function ChatView({
           <span className="h-4 w-px bg-[#e2e2e2]" />
           <span className="text-[11px] text-[#595959]">{chatState.typeLabel}</span>
           <span className="h-4 w-px bg-[#e2e2e2]" />
-          <span className="bg-[#1e1e20] text-white text-[11px] font-medium px-2.5 py-0.5 rounded-full">{chatState.ai}</span>
+          <span className="bg-[#1e1e20] text-white text-[11px] font-medium px-2.5 py-0.5 rounded-full">
+            {FLUX_AIS.has(chatState.ai) && getLoraInfo(chatState.brand)
+              ? `${chatState.ai} + LoRA ✦`
+              : chatState.ai}
+          </span>
           {chatState.brand.tone_of_voice && (
             <>
               <span className="h-4 w-px bg-[#e2e2e2]" />
@@ -1375,38 +1551,85 @@ function ChatView({
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 p-3 bg-white border-t border-[#e2e2e2]">
-                      <p className="text-[12px] text-[#595959] flex-1 line-clamp-2">{m.content}</p>
+                    <div className="bg-white border-t border-[#e2e2e2] px-3 py-2">
+                      {/* Prompt text */}
+                      <p className="text-[11px] text-[#595959] line-clamp-2 mb-2">{m.content}</p>
+                      {/* Action buttons — full width row */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         onClick={() => !m.saved && saveToGallery(m.imageUrl!, m.content, i)}
-                        className={`flex items-center gap-1 text-[12px] font-medium rounded-lg px-2.5 py-1.5 transition-colors flex-shrink-0 ${
+                        className={`flex items-center gap-1 text-[12px] font-medium rounded-lg px-2 py-1.5 transition-colors flex-shrink-0 ${
                           m.saved
                             ? 'bg-[#1e1e20] text-white border border-[#1e1e20] cursor-default'
                             : 'text-[#1e1e20] border border-[#e2e2e2] hover:bg-[#f5f3ef] cursor-pointer'
                         }`}
-                        title={m.saved ? 'Saved' : 'Save to gallery'}
                       >
                         <Bookmark className={`h-3.5 w-3.5 ${m.saved ? 'fill-current' : ''}`} />
                         {m.saved ? 'Saved' : 'Save'}
                       </button>
                       <button
+                        onClick={() => handleFeedback(m, i, 'approved')}
+                        className={`flex items-center gap-1 text-[12px] font-medium rounded-lg px-2 py-1.5 transition-colors flex-shrink-0 ${
+                          feedbackGiven[`${m.imageUrl}-like`]
+                            ? 'bg-green-600 text-white border border-green-600'
+                            : 'text-green-700 border border-green-200 hover:bg-green-50'
+                        }`}
+                        title="Good — add to training"
+                      >
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleFeedback(m, i, 'rejected')}
+                        className={`flex items-center gap-1 text-[12px] font-medium rounded-lg px-2 py-1.5 transition-colors flex-shrink-0 ${
+                          feedbackGiven[`${m.imageUrl}-dislike`]
+                            ? 'bg-red-500 text-white border border-red-500'
+                            : 'text-red-400 border border-red-200 hover:bg-red-50'
+                        }`}
+                        title="Bad — reject"
+                      >
+                        <ThumbsDown className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPinnedReference(m.imageUrl!);
+                          setPinnedAspectRatio('1:1');
+                          setAiEditingPrompt(m.content.slice(0, 40));
+                          setTimeout(() => { textareaRef.current?.focus(); }, 100);
+                        }}
+                        className="flex items-center gap-1 text-[12px] font-medium text-emerald-700 border border-emerald-200 bg-emerald-50 rounded-lg px-2 py-1.5 hover:bg-emerald-100 transition-colors flex-shrink-0"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        AI Edit
+                      </button>
+                      <button
                         onClick={() => setEditingImageUrl(m.imageUrl!)}
-                        className="flex items-center gap-1 text-[12px] font-medium text-[#7c3aed] border border-[#ede9fe] bg-[#f5f3ff] rounded-lg px-2.5 py-1.5 hover:bg-[#ede9fe] transition-colors flex-shrink-0"
-                        title="Edit — add logo & text"
+                        className="flex items-center gap-1 text-[12px] font-medium text-[#7c3aed] border border-[#ede9fe] bg-[#f5f3ff] rounded-lg px-2 py-1.5 hover:bg-[#ede9fe] transition-colors flex-shrink-0"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        Overlay
                       </button>
-                      <a
-                        href={m.imageUrl}
-                        download
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(m.imageUrl!);
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `shelby-${Date.now()}.jpg`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch {
+                            window.open(m.imageUrl, '_blank');
+                          }
+                        }}
                         className="flex items-center gap-1 text-[12px] font-medium text-[#1e1e20] border border-[#e2e2e2] rounded-lg px-2.5 py-1.5 hover:bg-[#f5f3ef] transition-colors flex-shrink-0"
                         title="Download"
                       >
                         <Download className="h-3.5 w-3.5" />
-                      </a>
+                        Download
+                      </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1569,6 +1792,8 @@ function ChatView({
 
           {/* Product + Layout reference chips — single row */}
           {(() => {
+            // Products + Layout chips only for Gemini — Flux/Grok use LoRA, not reference images
+            if (FLUX_AIS.has(chatState.ai) || GROK_AIS.has(chatState.ai)) return null;
             try {
               const dna = JSON.parse((chatState.brand as any).brand_dna ?? '{}');
               const productRefs: { name: string; url: string }[] = Array.isArray(dna.product_references) ? dna.product_references : [];
@@ -1635,20 +1860,31 @@ function ChatView({
 
           {/* Pinned reference indicator */}
           {pinnedReference && !imageAttachment && (
-            <div className="flex items-center gap-2 mb-3 px-1">
+            <div className={`flex items-center gap-2 mb-3 px-1 py-2 rounded-xl ${aiEditingPrompt ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
               <img
                 src={pinnedReference}
                 alt="Pinned"
-                className="h-8 w-8 rounded-lg object-cover border border-[#e2e2e2] flex-shrink-0"
+                className="h-10 w-10 rounded-lg object-cover border border-[#e2e2e2] flex-shrink-0"
               />
-              <span className="text-[11px] text-[#595959] flex-1">
-                <span className="font-medium text-[#1e1e20]">Product pinned</span> — sent as visual reference with every generation
+              <span className="text-[11px] flex-1">
+                {aiEditingPrompt ? (
+                  <>
+                    <span className="font-semibold text-emerald-800">AI Edit mode</span>
+                    <span className="text-emerald-600"> — describe your changes below. Gemini will update the image.</span>
+                    <span className="block text-[10px] text-emerald-500 mt-0.5">Based on: "{aiEditingPrompt}{aiEditingPrompt.length >= 40 ? '…' : ''}"</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium text-[#1e1e20]">Template pinned</span>
+                    <span className="text-[#595959]"> — original reference sent with every generation</span>
+                  </>
+                )}
               </span>
               <button
-                onClick={() => { setPinnedReference(null); setPinnedAspectRatio('1:1'); }}
+                onClick={() => { setPinnedReference(null); setPinnedAspectRatio('1:1'); setAiEditingPrompt(''); }}
                 className="text-[11px] text-[#595959] hover:text-[#1e1e20] transition-colors flex-shrink-0"
               >
-                Remove
+                Cancel
               </button>
             </div>
           )}
@@ -1796,36 +2032,37 @@ export default function AIWorkspacePage() {
   const [resumeMessages, setResumeMessages] = useState<Message[] | undefined>(undefined);
   const [chatKey, setChatKey] = useState(0);
 
-  // Resume from gallery: location.state carries { chatState, messages } set by AssetGalleryPage
+  // Resume from gallery: AssetGalleryPage writes to sessionStorage, we read on mount
   useEffect(() => {
-    const state = location.state as { chatState?: ChatState; messages?: Message[] } | null;
-    if (!state?.chatState || !state?.messages) return;
+    const raw_json = sessionStorage.getItem('shl_resume_chat');
+    if (!raw_json) return;
+    sessionStorage.removeItem('shl_resume_chat'); // consume once
 
-    const raw = state.chatState;
-    const restoredMessages = state.messages as Message[];
+    let parsed: { chatState?: ChatState; messages?: Message[] } | null = null;
+    try { parsed = JSON.parse(raw_json); } catch { return; }
+    if (!parsed?.chatState || !parsed?.messages) return;
 
-    setResumeMessages(restoredMessages);
-    window.history.replaceState({}, '');
+    const raw = parsed.chatState;
+    const restoredMessages = parsed.messages;
 
-    // Resolve proper typeLabel from CONTENT_TYPES (stored value may be the raw type ID)
     const typeEntry = CONTENT_TYPES.find((t) => t.id === raw.type);
     const resolvedTypeLabel = typeEntry?.title ?? raw.typeLabel ?? raw.type;
 
-    // Fetch the full brand profile so brand DNA is available for future generations
+    const applyResume = (fullBrand: ExtendedProfile) => {
+      setResumeMessages(restoredMessages);
+      setChatState({ ...raw, brand: fullBrand, typeLabel: resolvedTypeLabel });
+      setChatKey(k => k + 1);
+    };
+
     const brandId = raw.brand?.id;
     if (brandId) {
       axios.get(`/api/v1/entities/brand_profiles/${brandId}`)
-        .then((res) => {
-          const fullBrand = (res.data as ExtendedProfile) || raw.brand;
-          setChatState({ ...raw, brand: fullBrand, typeLabel: resolvedTypeLabel });
-        })
-        .catch(() => {
-          setChatState({ ...raw, typeLabel: resolvedTypeLabel });
-        });
+        .then((res) => applyResume((res.data as ExtendedProfile) || raw.brand as ExtendedProfile))
+        .catch(() => applyResume(raw.brand as ExtendedProfile));
     } else {
-      setChatState({ ...raw, typeLabel: resolvedTypeLabel });
+      applyResume(raw.brand as ExtendedProfile);
     }
-  }, []);
+  }, []); // runs once on mount — sessionStorage is already set by gallery
 
   const handleOpenChat = (brand: ExtendedProfile) => {
     setSelectedBrand(brand);
@@ -1837,6 +2074,7 @@ export default function AIWorkspacePage() {
     setSelectedBrand(null);
     setResumeMessages(undefined);
     setChatState(state);
+    setChatKey(k => k + 1); // always start a fresh chat on new selection
   };
 
   const handleReset = () => {

@@ -101,16 +101,15 @@ export default function AssetGalleryPage() {
     let messages: unknown;
     try { messages = JSON.parse(asset.chat_history); } catch { return; }
     const chatState = {
-      brand: {
-        id: asset.brand_id,
-        brand_name: asset.brand_name ?? 'Brand',
-      },
+      brand: { id: asset.brand_id, brand_name: asset.brand_name ?? 'Brand' },
       type: asset.content_type ?? 'social',
       typeLabel: asset.content_type ?? 'Social Media',
       ai: asset.ai_tool ?? 'Gemini Pro',
       modelId: 'gemini-3.5-flash',
     };
-    navigate('/chat', { state: { chatState, messages } });
+    // Use sessionStorage — more reliable than navigation state across route changes
+    sessionStorage.setItem('shl_resume_chat', JSON.stringify({ chatState, messages }));
+    navigate('/chat');
   }
 
   useEffect(() => {

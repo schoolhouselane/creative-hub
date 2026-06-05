@@ -7,7 +7,7 @@ import { type BrandProfile } from '@/lib/briefTypes';
 import {
   ArrowLeft, Edit2, Save, X, Loader2, Check, AlertCircle,
   Type, Palette, MessageSquare, Image as ImageIcon,
-  Upload, FileText, FolderOpen, CheckCircle2, Plus, Trash2, Package, LayoutGrid,
+  Upload, FileText, FolderOpen, CheckCircle2, Plus, Trash2, Package, LayoutGrid, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -545,8 +545,8 @@ export default function BrandDetailPage() {
                 onSave={updateDonts}
               />
 
-              {/* Product Library */}
-              <ProductLibrary
+              {/* Product Training */}
+              <ProductCategoryManager
                 brand={profile}
                 isAdmin={isAdmin}
                 onUpdated={(dna) => setProfile((p) => p ? { ...p, brand_dna: dna } : p)}
@@ -608,29 +608,566 @@ export default function BrandDetailPage() {
   );
 }
 
-// ─── Product Library ────────────────────────────────────────────────────────────
+// ─── Product Category Manager ───────────────────────────────────────────────────
 
 interface ProductRef {
   name: string;
   url: string;
 }
 
-async function compressToJpeg(dataUrl: string, maxWidth = 900): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.82));
-    };
-    img.src = dataUrl;
-  });
+// Returns the original data URL untouched — no resampling, no re-encoding
+async function compressToJpeg(dataUrl: string): Promise<string> {
+  return dataUrl;
 }
 
-function ProductLibrary({
+type LoraStatus = 'none' | 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+
+interface FeedbackItem {
+  id: string;
+  image_url: string;
+  prompt: string;
+  ai_tool: string;
+  type: 'approved' | 'rejected';
+  reason?: string;
+  timestamp: string;
+  brand_id: number;
+}
+
+interface ProductCategory {
+  id: string;
+  name: string;
+  trigger: string;
+  images: Array<{ name: string; url: string; caption?: string }>;
+  lora_status: LoraStatus;
+  lora_url: string;
+  lora_request_id: string;
+  lora_progress: number;
+  caption_template?: string;
+}
+
+function parseDna(brand: BrandProfile): Record<string, unknown> {
+  try { return JSON.parse((brand as any).brand_dna ?? '{}'); } catch { return {}; }
+}
+
+function generateId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function CategoryCard({
+  category,
+  isAdmin,
+  onUpdate,
+  onDelete,
+  onPersistCategories,
+  allCategories,
+  approvedFeedback,
+}: {
+  category: ProductCategory;
+  isAdmin: boolean;
+  onUpdate: (updated: ProductCategory) => void;
+  onDelete: () => void;
+  onPersistCategories: (cats: ProductCategory[]) => Promise<void>;
+  allCategories: ProductCategory[];
+  approvedFeedback: FeedbackItem[];
+}) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(category.name);
+  const [editingTrigger, setEditingTrigger] = useState(false);
+  const [triggerDraft, setTriggerDraft] = useState(category.trigger);
+  const [editingCaptionIdx, setEditingCaptionIdx] = useState<number | null>(null);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [newPhotoName, setNewPhotoName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [training, setTraining] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingPhotoName = useRef('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if ((category.lora_status === 'IN_QUEUE' || category.lora_status === 'IN_PROGRESS') && category.lora_request_id) {
+      startPolling(category.lora_request_id);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  const updateCategoryInList = (patch: Partial<ProductCategory>): ProductCategory[] => {
+    return allCategories.map((c) => c.id === category.id ? { ...c, ...patch } : c);
+  };
+
+  const startPolling = (reqId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await axios.get(`/api/v1/aihub/train-lora/${reqId}`);
+        const { status, progress, lora_url, error } = res.data;
+        const prog = progress ?? 0;
+        if (status === 'COMPLETED' && lora_url) {
+          clearInterval(pollRef.current!);
+          const updated: ProductCategory = { ...category, lora_status: 'COMPLETED', lora_url, lora_request_id: reqId, lora_progress: 100 };
+          onUpdate(updated);
+          await onPersistCategories(allCategories.map((c) => c.id === category.id ? updated : c));
+          toast.success(`"${category.name}" AI model trained!`);
+        } else if (status === 'FAILED') {
+          clearInterval(pollRef.current!);
+          const updated: ProductCategory = { ...category, lora_status: 'FAILED', lora_request_id: reqId, lora_progress: 0 };
+          onUpdate(updated);
+          await onPersistCategories(allCategories.map((c) => c.id === category.id ? updated : c));
+          toast.error(`Training failed for "${category.name}": ${error || 'Unknown error'}`);
+        } else {
+          const updated: ProductCategory = { ...category, lora_status: status as LoraStatus, lora_progress: prog };
+          onUpdate(updated);
+        }
+      } catch { /* silent — keep polling */ }
+    }, 15000);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setSaving(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const compressed = await compressToJpeg(ev.target?.result as string);
+        const name = pendingPhotoName.current || file.name.replace(/\.[^.]+$/, '');
+        const updatedCat: ProductCategory = { ...category, images: [...category.images, { name, url: compressed }] };
+        const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+        onUpdate(updatedCat);
+        await onPersistCategories(updatedList);
+        setNewPhotoName('');
+        pendingPhotoName.current = '';
+        toast.success('Photo added');
+      } catch {
+        toast.error('Failed to save photo');
+      } finally {
+        setSaving(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveImageCaption = async (idx: number, caption: string) => {
+    const updatedImages = category.images.map((img, i) =>
+      i === idx ? { ...img, caption: caption.trim() || undefined } : img
+    );
+    const updatedCat: ProductCategory = { ...category, images: updatedImages };
+    const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+    onUpdate(updatedCat);
+    await onPersistCategories(updatedList);
+    setEditingCaptionIdx(null);
+  };
+
+  const removePhoto = async (idx: number) => {
+    const updatedCat: ProductCategory = { ...category, images: category.images.filter((_, i) => i !== idx) };
+    const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+    onUpdate(updatedCat);
+    await onPersistCategories(updatedList);
+    toast.success('Photo removed');
+  };
+
+  const saveName = async () => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === category.name) { setEditingName(false); return; }
+    const updatedCat: ProductCategory = { ...category, name: trimmed };
+    const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+    onUpdate(updatedCat);
+    await onPersistCategories(updatedList);
+    setEditingName(false);
+    toast.success('Category name saved');
+  };
+
+  const saveTrigger = async () => {
+    const trimmed = triggerDraft.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!trimmed || trimmed === category.trigger) { setEditingTrigger(false); return; }
+    const updatedCat: ProductCategory = { ...category, trigger: trimmed };
+    const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+    onUpdate(updatedCat);
+    await onPersistCategories(updatedList);
+    setEditingTrigger(false);
+    toast.success('Trigger word saved');
+  };
+
+  const handleTrain = async () => {
+    if (category.images.length < 3) { toast.error('Upload at least 3 photos first'); return; }
+    const startedCat: ProductCategory = { ...category, lora_status: 'IN_QUEUE', lora_progress: 0 };
+    onUpdate(startedCat);
+    try {
+      // Per-image caption if set, else fall back to template, else no caption
+      // Combine: template (colors/brand) + per-image (angle/details) — never replace
+      const builtCaptions = category.images.map(img => {
+        const template = category.caption_template?.trim() ?? '';
+        const specific = img.caption?.trim() ?? '';
+        if (template && specific) return `${template}. ${specific}`;
+        return template || specific;
+      });
+      const captions = builtCaptions.some(c => c) ? builtCaptions : undefined;
+      const res = await axios.post('/api/v1/aihub/train-lora', {
+        images: category.images.map((i) => i.url),
+        trigger_word: category.trigger,
+        ...(captions && captions.length > 0 ? { captions } : {}),
+      });
+      const reqId = res.data.request_id;
+      const updatedCat: ProductCategory = { ...startedCat, lora_request_id: reqId };
+      const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+      onUpdate(updatedCat);
+      await onPersistCategories(updatedList);
+      startPolling(reqId);
+      toast.success('Training started! This takes ~20–30 min. You can close this page.');
+    } catch (err: any) {
+      const resetCat: ProductCategory = { ...category, lora_status: 'none', lora_progress: 0 };
+      onUpdate(resetCat);
+      toast.error(err?.response?.data?.detail || 'Failed to start training');
+    }
+  };
+
+  const handleRetrain = async () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    const resetCat: ProductCategory = { ...category, lora_status: 'none', lora_url: '', lora_request_id: '', lora_progress: 0 };
+    const updatedList = allCategories.map((c) => c.id === category.id ? resetCat : c);
+    onUpdate(resetCat);
+    await onPersistCategories(updatedList);
+  };
+
+  const handleIterativeRetrain = async () => {
+    if (approvedFeedback.length === 0) return;
+    setTraining(true);
+    const triggerWord = category.trigger;
+
+    const allImages = [
+      ...category.images.map(i => i.url),
+      ...approvedFeedback.map(f => f.image_url),
+    ];
+    // Per-image captions for originals, template for feedback images
+    const origCaptions = category.images.map(img => {
+      const template = category.caption_template?.trim() ?? '';
+      const specific = img.caption?.trim() ?? '';
+      if (template && specific) return `${template}. ${specific}`;
+      return template || specific;
+    });
+    const feedbackCaptions = approvedFeedback.map(() => category.caption_template || '');
+    const allCaptions = [...origCaptions, ...feedbackCaptions];
+    const captions = allCaptions.some(c => c) ? allCaptions : undefined;
+
+    try {
+      const res = await axios.post('/api/v1/aihub/train-lora', {
+        images: allImages,
+        trigger_word: triggerWord,
+        ...(captions ? { captions } : {}),
+      });
+      const reqId = res.data.request_id;
+      const updated: ProductCategory = {
+        ...category,
+        lora_status: 'IN_QUEUE',
+        lora_request_id: reqId,
+        lora_progress: 0,
+        lora_url: '',
+      };
+      onUpdate(updated);
+      await onPersistCategories(allCategories.map(c => c.id === category.id ? updated : c));
+      startPolling(reqId);
+      toast.success(`Re-training started with ${allImages.length} images (${category.images.length} original + ${approvedFeedback.length} feedback)`);
+    } catch (err: any) {
+      setTraining(false);
+      toast.error(err?.response?.data?.detail || 'Re-training failed');
+    }
+  };
+
+  const isTraining = category.lora_status === 'IN_QUEUE' || category.lora_status === 'IN_PROGRESS';
+  const needMore = 3 - category.images.length;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 mb-4">
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+
+      {/* Lightbox */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <button
+            onClick={() => setPreviewUrl(null)}
+            className="absolute top-4 right-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-2 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={previewUrl}
+            alt="Product preview"
+            className="max-h-[90vh] max-w-[90vw] rounded-2xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Card header: name + trigger + delete */}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5 min-w-0">
+          {/* Category name */}
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={saveName}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                className="text-[14px] font-semibold text-gray-800 border-b border-violet-400 outline-none bg-transparent"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 group/name">
+              <span className="text-[14px] font-semibold text-gray-800">{category.name}</span>
+              {isAdmin && (
+                <button
+                  onClick={() => { setEditingName(true); setNameDraft(category.name); }}
+                  className="opacity-0 group-hover/name:opacity-100 transition-opacity rounded p-0.5 text-gray-300 hover:text-gray-600"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+          {/* Trigger word */}
+          {editingTrigger ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={triggerDraft}
+                onChange={(e) => setTriggerDraft(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                onBlur={saveTrigger}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveTrigger(); if (e.key === 'Escape') setEditingTrigger(false); }}
+                className="font-mono text-[12px] font-semibold text-white bg-[#1e1e20] rounded px-2 py-0.5 border border-transparent outline-none w-32"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 group/trigger">
+              <span className="font-mono text-[12px] font-semibold text-white bg-[#1e1e20] rounded px-2 py-0.5">
+                {category.trigger}
+              </span>
+              {isAdmin && (
+                <button
+                  onClick={() => { setEditingTrigger(true); setTriggerDraft(category.trigger); }}
+                  className="opacity-0 group-hover/trigger:opacity-100 transition-opacity rounded p-0.5 text-gray-300 hover:text-gray-600"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {isAdmin && (
+          <button
+            onClick={onDelete}
+            className="shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+            title="Delete category"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Caption template field */}
+      {isAdmin && (
+        <div className="mb-3">
+          <label className="block text-[12px] font-semibold text-gray-600 mb-1">Training Caption</label>
+          <textarea
+            defaultValue={category.caption_template ?? ''}
+            placeholder="Describe the product for every image: color, materials, details. e.g. SHELBYBIKE road bicycle, matte cream beige frame #FBECB7, dark brown #502C12 SHELBY logo, black Shimano components, Pirelli tires"
+            rows={3}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none resize-none"
+            onBlur={async (e) => {
+              const val = e.target.value;
+              if (val === (category.caption_template ?? '')) return;
+              const updatedCat: ProductCategory = { ...category, caption_template: val };
+              const updatedList = allCategories.map((c) => c.id === category.id ? updatedCat : c);
+              onUpdate(updatedCat);
+              await onPersistCategories(updatedList);
+            }}
+          />
+          <p className="text-[11px] text-gray-400 mt-1">
+            This caption is bundled with every image when training. The AI reads it to learn exact colors and details.
+          </p>
+        </div>
+      )}
+
+      {/* Image grid */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {category.images.map((img, i) => (
+          <div key={i} className="group relative rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+            <div
+              className="relative cursor-zoom-in"
+              onClick={() => setPreviewUrl(img.url)}
+            >
+              <img src={img.url} alt={img.name} className="h-[120px] w-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[11px] font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
+                  Preview
+                </span>
+              </div>
+            </div>
+            <div className="bg-white px-2 py-1.5 flex items-center justify-between gap-1">
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-gray-700 truncate">{img.name}</span>
+              {isAdmin && (
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    onClick={() => { setEditingCaptionIdx(i); setCaptionDraft(img.caption ?? category.caption_template ?? ''); }}
+                    className={`rounded p-0.5 transition-colors ${img.caption ? 'text-violet-500 hover:bg-violet-50' : 'text-gray-300 hover:bg-gray-100 hover:text-gray-500'}`}
+                    title={img.caption ? 'Edit caption' : 'Add caption'}
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => removePhoto(i)}
+                    className="rounded p-0.5 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Per-image caption editor */}
+            {editingCaptionIdx === i && (
+              <div className="bg-violet-50 border-t border-violet-200 p-2">
+                <textarea
+                  value={captionDraft}
+                  onChange={(e) => setCaptionDraft(e.target.value)}
+                  placeholder="Describe this specific photo — angle, what's visible, crop..."
+                  className="w-full text-[11px] text-gray-700 bg-white border border-violet-200 rounded-lg px-2 py-1.5 resize-none outline-none min-h-[60px]"
+                  autoFocus
+                />
+                <div className="flex gap-1.5 mt-1.5">
+                  <button onClick={() => saveImageCaption(i, captionDraft)} className="flex-1 bg-violet-600 text-white text-[11px] font-medium rounded-lg py-1 hover:bg-violet-700 transition-colors">Save</button>
+                  <button onClick={() => setEditingCaptionIdx(null)} className="flex-1 text-[11px] text-gray-500 border border-gray-200 rounded-lg py-1 hover:bg-gray-50 transition-colors">Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {isAdmin && (
+          <button
+            onClick={() => { pendingPhotoName.current = ''; fileInputRef.current?.click(); }}
+            disabled={saving}
+            className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-gray-200 bg-white h-[120px] text-[12px] text-gray-500 hover:border-violet-300 hover:bg-violet-50/40 hover:text-violet-700 transition-colors"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            Add photo
+          </button>
+        )}
+
+        {category.images.length === 0 && !isAdmin && (
+          <p className="col-span-3 text-[12px] text-gray-400 py-3">No photos added yet.</p>
+        )}
+      </div>
+
+      {/* Train / status section */}
+      {isAdmin && (
+        <>
+        <div className={`rounded-lg p-3 border ${category.lora_status === 'COMPLETED' ? 'bg-green-50 border-green-200' : category.lora_status === 'FAILED' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+          {category.lora_status === 'COMPLETED' ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
+                  <Check className="h-3 w-3 text-white" />
+                </span>
+                <span className="text-[13px] font-semibold text-green-800">Trained</span>
+              </div>
+              <button onClick={handleRetrain} className="text-[12px] text-gray-500 hover:text-gray-700 underline">
+                Re-train
+              </button>
+            </div>
+          ) : isTraining ? (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-700">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-yellow-500" />
+                  Training {category.lora_progress > 0 ? `${category.lora_progress}%` : '…'}
+                </span>
+                <span className="text-[12px] text-gray-400">
+                  {category.lora_status === 'IN_QUEUE' ? 'Queued' : `${category.lora_progress}%`}
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 rounded-full transition-all"
+                  style={{ width: `${category.lora_progress > 0 ? category.lora_progress : 5}%` }}
+                />
+              </div>
+            </div>
+          ) : category.lora_status === 'FAILED' ? (
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-red-700">Training failed</span>
+              <button
+                onClick={handleTrain}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 text-white px-3 py-1.5 text-[12px] font-medium hover:bg-red-700 transition-colors"
+              >
+                <Sparkles className="h-3 w-3" /> Retry
+              </button>
+            </div>
+          ) : category.images.length >= 3 ? (
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] text-gray-600">
+                {category.images.length} photos ready
+              </span>
+              <button
+                onClick={handleTrain}
+                className="flex items-center gap-1.5 bg-[#1e1e20] text-white rounded-lg px-4 py-2 text-[13px] font-medium hover:bg-[#2d2d30] transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Train AI Model
+              </button>
+            </div>
+          ) : (
+            <p className="text-[12px] text-gray-400">
+              Upload {needMore} more photo{needMore !== 1 ? 's' : ''} to enable training
+            </p>
+          )}
+        </div>
+
+        {/* Feedback Training section — only when COMPLETED and approved feedback exists */}
+        {category.lora_status === 'COMPLETED' && approvedFeedback.length > 0 && (
+          <div className="mt-3 rounded-xl bg-violet-50 border border-violet-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[13px] font-semibold text-violet-800">
+                  Feedback Training Available
+                </p>
+                <p className="text-[12px] text-violet-600 mt-0.5">
+                  {approvedFeedback.length} approved image{approvedFeedback.length !== 1 ? 's' : ''} collected — re-train to improve accuracy
+                </p>
+              </div>
+              <button
+                onClick={handleIterativeRetrain}
+                disabled={training}
+                className="flex items-center gap-2 bg-violet-600 text-white rounded-lg px-4 py-2 text-[13px] font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors"
+              >
+                {training ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Re-train with Feedback
+              </button>
+            </div>
+            {/* Thumbnail strip */}
+            <div className="flex gap-1.5 mt-3 overflow-x-auto">
+              {approvedFeedback.slice(0, 8).map((f, i) => (
+                <img key={i} src={f.image_url} alt="approved" className="h-12 w-12 rounded-lg object-cover flex-shrink-0 border border-violet-200" />
+              ))}
+              {approvedFeedback.length > 8 && (
+                <div className="h-12 w-12 rounded-lg bg-violet-200 flex items-center justify-center flex-shrink-0 text-[11px] font-semibold text-violet-700">
+                  +{approvedFeedback.length - 8}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProductCategoryManager({
   brand,
   isAdmin,
   onUpdated,
@@ -639,113 +1176,180 @@ function ProductLibrary({
   isAdmin: boolean;
   onUpdated: (dna: string) => void;
 }) {
-  const [refs, setRefs] = useState<ProductRef[]>(() => {
-    try {
-      const dna = JSON.parse((brand as any).brand_dna ?? '{}');
-      return Array.isArray(dna.product_references) ? dna.product_references : [];
-    } catch { return []; }
+  const dna0 = parseDna(brand);
+  const [categories, setCategories] = useState<ProductCategory[]>(() => {
+    const raw = dna0.product_categories;
+    return Array.isArray(raw) ? (raw as ProductCategory[]) : [];
   });
-  const [newName, setNewName] = useState('');
-  const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const pendingName = useRef('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatTrigger, setNewCatTrigger] = useState('');
+  const [adding, setAdding] = useState(false);
 
-  const persist = async (updated: ProductRef[]) => {
-    setSaving(true);
+  const allFeedback: FeedbackItem[] = (() => {
     try {
-      let dna: Record<string, unknown> = {};
-      try { dna = JSON.parse((brand as any).brand_dna ?? '{}'); } catch { /**/ }
-      dna.product_references = updated;
-      const dnaStr = JSON.stringify(dna);
-      await mgxClient.entities.brand_profiles.update({
-        id: String(brand.id),
-        data: { brand_dna: dnaStr },
-      });
-      setRefs(updated);
-      onUpdated(dnaStr);
-      toast.success('Product library updated');
+      const dna = parseDna(brand);
+      return Array.isArray(dna.training_feedback) ? dna.training_feedback as FeedbackItem[] : [];
+    } catch { return []; }
+  })();
+  const approvedFeedback = allFeedback.filter(f => f.type === 'approved');
+
+  const persistCategories = async (updated: ProductCategory[]) => {
+    const dna = parseDna(brand);
+    dna.product_categories = updated;
+    const dnaStr = JSON.stringify(dna);
+    await mgxClient.entities.brand_profiles.update({ id: String(brand.id), data: { brand_dna: dnaStr } });
+    onUpdated(dnaStr);
+  };
+
+  const handleCategoryUpdate = (updated: ProductCategory) => {
+    setCategories((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+  };
+
+  const handleDelete = async (id: string) => {
+    const updated = categories.filter((c) => c.id !== id);
+    setCategories(updated);
+    await persistCategories(updated);
+    toast.success('Category deleted');
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCatName.trim();
+    const trigger = newCatTrigger.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!name) { toast.error('Enter a category name'); return; }
+    if (!trigger) { toast.error('Enter a trigger word'); return; }
+    setAdding(true);
+    const newCat: ProductCategory = {
+      id: generateId(),
+      name,
+      trigger,
+      images: [],
+      lora_status: 'none',
+      lora_url: '',
+      lora_request_id: '',
+      lora_progress: 0,
+    };
+    const updated = [...categories, newCat];
+    try {
+      await persistCategories(updated);
+      setCategories(updated);
+      setNewCatName('');
+      setNewCatTrigger('');
+      setShowAddForm(false);
+      toast.success('Category created');
     } catch {
-      toast.error('Failed to save');
+      toast.error('Failed to create category');
     } finally {
-      setSaving(false);
+      setAdding(false);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const raw = ev.target?.result as string;
-      const compressed = await compressToJpeg(raw);
-      const name = pendingName.current || file.name.replace(/\.[^.]+$/, '');
-      await persist([...refs, { name, url: compressed }]);
-      setNewName('');
-      pendingName.current = '';
-    };
-    reader.readAsDataURL(file);
+  const autoTrigger = (name: string): string => {
+    const base = brand.brand_name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const suffix = name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    return base + suffix;
   };
-
-  const remove = (idx: number) => persist(refs.filter((_, i) => i !== idx));
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
-      <div className="mb-1 flex items-center gap-2">
-        <Package className="h-4 w-4 text-violet-500" />
-        <h2 className="text-sm font-semibold text-gray-700">Product Library</h2>
+      {/* Header */}
+      <div className="mb-1 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-violet-500" />
+          <h2 className="text-sm font-semibold text-gray-700">Product Training</h2>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => {
+              setShowAddForm((v) => !v);
+              setNewCatName('');
+              setNewCatTrigger('');
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] font-medium text-gray-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Category
+          </button>
+        )}
       </div>
       <p className="mb-5 text-xs text-gray-400">
-        Upload photos of your specific products — bike, helmet, kit. AI will use these as visual references when generating images so it knows exactly what your products look like.
+        Train separate AI models per product. Each gets its own trigger word.
       </p>
 
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-
-      <div className="grid grid-cols-3 gap-3">
-        {refs.map((ref, i) => (
-          <div key={i} className="group relative rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-            <img src={ref.url} alt={ref.name} className="h-[120px] w-full object-cover" />
-            <div className="bg-white px-3 py-2 flex items-center justify-between">
-              <span className="text-[13px] font-medium text-gray-700 truncate">{ref.name}</span>
-              {isAdmin && (
-                <button
-                  onClick={() => remove(i)}
-                  className="ml-2 shrink-0 rounded-lg p-1 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {isAdmin && (
-          <div className="flex flex-col gap-2">
+      {/* Inline add form */}
+      {showAddForm && isAdmin && (
+        <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+          <p className="mb-3 text-[13px] font-semibold text-gray-700">New Category</p>
+          <div className="flex flex-col gap-2.5">
             <input
               type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Name (e.g. Bike, Helmet, Kit)"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none"
-            />
-            <button
-              onClick={() => {
-                pendingName.current = newName;
-                fileInputRef.current?.click();
+              value={newCatName}
+              onChange={(e) => {
+                setNewCatName(e.target.value);
+                if (!newCatTrigger || newCatTrigger === autoTrigger(newCatName)) {
+                  setNewCatTrigger(autoTrigger(e.target.value));
+                }
               }}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 h-[86px] text-[13px] text-gray-500 hover:border-violet-300 hover:bg-violet-50/40 hover:text-violet-700 transition-colors"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Add Product
-            </button>
+              placeholder="Category name (e.g. Shelby Urban Bike)"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none"
+            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newCatTrigger}
+                onChange={(e) => setNewCatTrigger(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                placeholder="Trigger word (e.g. SHELBYBIKE)"
+                className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none"
+              />
+              <span className="text-[11px] text-gray-400">auto-generated</span>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleAddCategory}
+                disabled={adding}
+                className="flex items-center gap-1.5 bg-[#1e1e20] text-white rounded-lg px-4 py-2 text-[13px] font-medium hover:bg-[#2d2d30] disabled:opacity-40 transition-colors"
+              >
+                {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                Create
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="rounded-lg px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {refs.length === 0 && !isAdmin && (
-          <p className="col-span-3 text-sm text-gray-400 py-4">No product references added yet.</p>
-        )}
-      </div>
+      {/* Category cards */}
+      {categories.length > 0 ? (
+        categories.map((cat) => (
+          <CategoryCard
+            key={cat.id}
+            category={cat}
+            isAdmin={isAdmin}
+            onUpdate={handleCategoryUpdate}
+            onDelete={() => handleDelete(cat.id)}
+            onPersistCategories={persistCategories}
+            allCategories={categories}
+            approvedFeedback={approvedFeedback}
+          />
+        ))
+      ) : (
+        !showAddForm && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
+              <Package className="h-7 w-7 text-gray-300" />
+            </div>
+            <p className="text-[14px] font-semibold text-gray-700">No product categories yet</p>
+            <p className="mt-1 text-[13px] text-gray-400 max-w-xs">
+              Add your first category to start training brand-specific AI models.
+            </p>
+          </div>
+        )
+      )}
     </div>
   );
 }

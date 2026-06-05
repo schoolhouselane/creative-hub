@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Building2, BookMarked, MessageSquare, Image,
   FileText, LogOut, User, Menu, X,
 } from 'lucide-react';
+import FloatingClaudeChat from '@/components/FloatingClaudeChat';
 
 const client = createClient();
 
@@ -144,6 +145,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           {children}
         </main>
       </div>
+
+      <FloatingClaudeChat />
     </div>
   );
 }

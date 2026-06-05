@@ -1,5 +1,9 @@
+import base64
 import json
 import logging
+import os
+import uuid
+from pathlib import Path
 from typing import List, Optional
 
 from datetime import datetime, date
@@ -529,3 +533,43 @@ async def save_brand_chat(
 
     await service.update(id, {"chat_history": json.dumps(clean)}, user_id=str(current_user.id))
     return {"success": True, "message_count": len(clean)}
+
+
+class SaveImageRequest(BaseModel):
+    data_uri: str  # "data:image/png;base64,..."
+
+
+_UPLOADS_ROOT = Path(__file__).parent.parent / "uploads" / "generated"
+
+
+@router.post("/{id}/save-image")
+async def save_generated_image(
+    id: int,
+    body: SaveImageRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Convert a base64 data URI into a stable local file and return its URL."""
+    service = Brand_profilesService(db)
+    brand = await service.get_by_id(id, user_id=str(current_user.id))
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+
+    try:
+        header, b64data = body.data_uri.split(",", 1)
+        ext = "png"
+        if "jpeg" in header or "jpg" in header:
+            ext = "jpg"
+        elif "webp" in header:
+            ext = "webp"
+        image_bytes = base64.b64decode(b64data)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid data URI")
+
+    brand_dir = _UPLOADS_ROOT / str(id)
+    brand_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    (brand_dir / filename).write_bytes(image_bytes)
+
+    url = f"/uploads/generated/{id}/{filename}"
+    return {"url": url}

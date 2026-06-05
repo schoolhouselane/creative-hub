@@ -7,7 +7,7 @@ and speech transcription API endpoints.
 import ast
 import json
 import logging
-from typing import Any
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -402,3 +402,97 @@ async def analyze_pdf(request: AnalyzePdfRequest):
     except Exception as e:
         logger.error(f"PDF analysis failed: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=extract_error_message(e))
+
+
+# ── LoRA Fine-tuning ──────────────────────────────────────────────────────────────
+
+class LoRATrainRequest(BaseModel):
+    images: list[str]        # base64 data URLs from brand's product_references
+    trigger_word: str        # e.g. "SHELBY"
+    captions: Optional[List[str]] = None  # per-image caption text files for training
+
+class LoRATrainResponse(BaseModel):
+    request_id: str
+    status: str = "IN_QUEUE"
+
+class LoRAStatusResponse(BaseModel):
+    status: str              # IN_QUEUE | IN_PROGRESS | COMPLETED | FAILED
+    progress: int = 0
+    lora_url: str | None = None
+    error: str | None = None
+
+class LoRAGenerateRequest(BaseModel):
+    prompt: str
+    lora_url: str
+    size: str = "square_hd"
+
+class LoRAGenerateResponse(BaseModel):
+    images: list[str]
+
+
+@router.post("/train-lora", response_model=LoRATrainResponse)
+async def train_lora(request: LoRATrainRequest):
+    """Start a LoRA fine-tuning job on fal.ai using brand product images."""
+    if len(request.images) < 3:
+        raise HTTPException(status_code=400, detail="At least 3 product images required for LoRA training")
+    try:
+        service = AIHubService()
+        request_id = await service.train_lora(request.images, request.trigger_word, captions=request.captions)
+        return LoRATrainResponse(request_id=request_id, status="IN_QUEUE")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    except Exception as e:
+        logger.error(f"LoRA training submission failed: {e}")
+        raise HTTPException(status_code=500, detail=extract_error_message(e))
+
+
+@router.get("/train-lora/{request_id}", response_model=LoRAStatusResponse)
+async def get_lora_status(request_id: str):
+    """Poll fal.ai for the status of a LoRA training job."""
+    try:
+        service = AIHubService()
+        result = await service.get_lora_status(request_id)
+        return LoRAStatusResponse(**result)
+    except Exception as e:
+        logger.error(f"LoRA status check failed: {e}")
+        raise HTTPException(status_code=500, detail=extract_error_message(e))
+
+
+@router.post("/genimg-lora", response_model=LoRAGenerateResponse)
+async def generate_image_with_lora(request: LoRAGenerateRequest):
+    """Generate an image using a brand-specific trained LoRA."""
+    try:
+        service = AIHubService()
+        images = await service.genimg_flux_lora(request.prompt, request.lora_url, request.size)
+        return LoRAGenerateResponse(images=images)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    except Exception as e:
+        logger.error(f"LoRA image generation failed: {e}")
+        raise HTTPException(status_code=500, detail=extract_error_message(e))
+
+
+class GrokGenImgRequest(BaseModel):
+    prompt: str
+    size: str = "square_hd"
+    brand_context: Optional[str] = None
+    product_images: Optional[List[str]] = None  # base64 data URIs — described via Gemini Vision
+
+class GrokGenImgResponse(BaseModel):
+    images: list[str]
+    product_descriptions: Optional[List[str]] = None  # what Gemini saw in each product
+
+@router.post("/genimg-grok", response_model=GrokGenImgResponse)
+async def generate_image_grok(request: GrokGenImgRequest):
+    """Generate images using xAI Grok. Product images are described via Gemini Vision first."""
+    try:
+        service = AIHubService()
+        images, descriptions = await service.genimg_grok(
+            request.prompt, request.size, request.brand_context, request.product_images
+        )
+        return GrokGenImgResponse(images=images, product_descriptions=descriptions or None)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    except Exception as e:
+        logger.error(f"Grok image generation failed: {e}")
+        raise HTTPException(status_code=500, detail=extract_error_message(e))

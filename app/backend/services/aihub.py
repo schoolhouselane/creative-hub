@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import struct
+import zipfile
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
@@ -1044,13 +1045,22 @@ User instruction:
             if inline:
                 current_parts.append(inline)
 
-        # Product reference images — appended after the template so Gemini sees them
-        # as additional context for faithful product reproduction
-        if getattr(request, "product_images", None):
-            for prod_uri in request.product_images:
-                prod_inline = _data_uri_to_inline(prod_uri)
-                if prod_inline:
-                    current_parts.append(prod_inline)
+        # Product reference images — prepend an instruction text, then append images
+        # so Gemini knows exactly what these images are for
+        product_images = getattr(request, "product_images", None) or []
+        if product_images:
+            valid_prod_inlines = [_data_uri_to_inline(u) for u in product_images]
+            valid_prod_inlines = [p for p in valid_prod_inlines if p]
+            if valid_prod_inlines:
+                current_parts.append({
+                    "text": (
+                        f"PRODUCT REFERENCES ({len(valid_prod_inlines)} image{'s' if len(valid_prod_inlines) > 1 else ''} attached below): "
+                        "These are the ACTUAL brand products. You MUST reproduce these exact products in the output — "
+                        "same bike frame geometry, same helmet design, same kit/suit colours and logos. "
+                        "Do NOT use generic or invented products. Match the product appearance precisely."
+                    )
+                })
+                current_parts.extend(valid_prod_inlines)
 
         if contents and contents[-1]["role"] == "user":
             contents[-1]["parts"].extend(current_parts)
@@ -1065,6 +1075,13 @@ User instruction:
             "When a reference image is provided, ALWAYS match its EXACT aspect ratio and dimensions. "
             "When refining, look at the previous image and apply the user's changes while preserving the design."
         )
+        if product_images:
+            system_instruction += (
+                "\n\nPRODUCT FIDELITY RULE: The user has pinned specific product reference images. "
+                "These are the brand's REAL products. Every image you generate MUST feature these exact products — "
+                "faithfully reproduce the bike frame, helmet design, kit colours and logos shown in the references. "
+                "Never substitute with generic products."
+            )
         if request.brand_context:
             system_instruction += (
                 "\n\n=== BRAND GUIDELINES — treat these as absolute ground truth for every design decision ===\n"
@@ -1984,3 +2001,262 @@ User instruction:
         except Exception as e:
             logger.error(f"transcribe error: {e}")
             raise
+
+    @staticmethod
+    def _to_inline(uri: str) -> dict | None:
+        """Convert a base64 data URI to a Gemini inlineData part."""
+        if not uri or not uri.startswith("data:"):
+            return None
+        try:
+            mime_part = uri.split(";")[0][5:]
+            b64_part = uri.split(",", 1)[1]
+            return {"inlineData": {"mimeType": mime_part, "data": b64_part}}
+        except Exception:
+            return None
+
+    async def _describe_product_via_vision(self, image_b64: str, api_key: str) -> str:
+        """Use Gemini Vision to produce a precise text description of a product image.
+        This description is then injected into Grok's text prompt as a reference.
+        """
+        inline = self._to_inline(image_b64)
+        if not inline:
+            return ""
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "text": (
+                            "Describe this product in precise detail for use as a reference in AI image generation. "
+                            "Focus on: exact shape and geometry, colors (include hex codes if visible), "
+                            "logos and text/branding exactly as they appear, materials and textures, "
+                            "distinctive design features. Be very specific and technical. "
+                            "Output as ONE descriptive paragraph only — no introduction, no bullet points."
+                        )
+                    },
+                    inline,
+                ]
+            }]
+        }
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as http:
+                resp = await http.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
+                    json=payload,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+                return " ".join(p.get("text", "") for p in parts if "text" in p).strip()
+        except Exception as e:
+            logger.warning(f"Vision description failed: {e}")
+            return ""
+
+    async def genimg_grok(self, prompt: str, size: str = "square_hd", brand_context: str | None = None, product_images: list[str] | None = None) -> tuple[list[str], list[str]]:
+        """Generate images via xAI Grok Imagine on fal.ai."""
+        fal_key = os.getenv("FAL_KEY", "")
+        if not fal_key:
+            raise ValueError("FAL_KEY not configured in .env")
+
+        # Grok accepts basic size hints
+        size_map = {
+            "1:1": "1024x1024", "square_hd": "1024x1024",
+            "9:16": "768x1344", "16:9": "1344x768",
+            "4:3": "1024x768", "3:4": "768x1024",
+        }
+        img_size = size_map.get(size, "1024x1024")
+
+        # ── Vision Bridge: describe each product image via Gemini before sending to Grok ──
+        descriptions: list[str] = []
+        if product_images:
+            gemini_key = os.getenv("APP_AI_KEY", "")
+            if gemini_key:
+                tasks = [
+                    self._describe_product_via_vision(img, gemini_key)
+                    for img in product_images[:4]  # max 4 products
+                ]
+                raw_descriptions = await asyncio.gather(*tasks)
+                descriptions = [d for d in raw_descriptions if d]
+                logger.info(f"Vision bridge: described {len(descriptions)} products for Grok")
+
+        # Build final prompt with all context injected as text
+        parts = [prompt]
+        if descriptions:
+            product_block = "\n".join(f"Product {i+1}: {d}" for i, d in enumerate(descriptions))
+            parts.append(
+                f"\n[EXACT PRODUCT REFERENCES — reproduce these faithfully in the image]\n{product_block}"
+            )
+        if brand_context:
+            parts.append(f"\n[Brand context — apply to every visual decision]\n{brand_context}")
+        full_prompt = "\n".join(parts)
+        # Grok has a prompt length limit — truncate to 4000 chars to stay safe
+        if len(full_prompt) > 4000:
+            full_prompt = full_prompt[:4000]
+        logger.info(f"Grok prompt length: {len(full_prompt)} chars")
+
+        async with httpx.AsyncClient(timeout=120.0) as http:
+            resp = await http.post(
+                "https://fal.run/xai/grok-imagine-image",
+                headers={"Authorization": f"Key {fal_key}", "Content-Type": "application/json"},
+                json={"prompt": full_prompt},  # minimal payload — only prompt is required
+            )
+            if not resp.is_success:
+                logger.error(f"Grok 422 body: {resp.text[:500]}")
+            resp.raise_for_status()
+            data = resp.json()
+            images = [item["url"] for item in data.get("images", []) if item.get("url")]
+            if not images:
+                raise RuntimeError(f"Grok returned no images: {data}")
+            return images, descriptions
+
+    # ── LoRA Fine-tuning ──────────────────────────────────────────────────────────
+
+    async def train_lora(self, images_base64: list[str], trigger_word: str, captions: list[str] | None = None) -> str:
+        """Upload product images to fal.ai and start a LoRA training job.
+        Returns the fal.ai request_id for polling.
+        If captions are provided, a matching .txt file is written alongside each image.
+        """
+        fal_key = os.getenv("FAL_KEY", "")
+        if not fal_key:
+            raise ValueError("FAL_KEY not configured in .env")
+
+        # Build an in-memory zip of all product images (and optional caption txt files)
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for idx, img in enumerate(images_base64):
+                try:
+                    raw_b64 = img.split(",", 1)[1] if "," in img else img
+                    img_bytes = base64.b64decode(raw_b64)
+                    ext = "jpg"
+                    if img.startswith("data:image/png"):
+                        ext = "png"
+                    stem = f"image_{idx:03d}"
+                    zf.writestr(f"{stem}.{ext}", img_bytes)
+                    # Write companion caption file if provided
+                    if captions and idx < len(captions) and captions[idx]:
+                        zf.writestr(f"{stem}.txt", captions[idx].encode("utf-8"))
+                except Exception as e:
+                    logger.warning(f"Skipping image {idx}: {e}")
+        zip_buf.seek(0)
+
+        # Upload the zip to fal.ai storage (correct domain: fal.media)
+        async with httpx.AsyncClient(timeout=120.0) as http:
+            upload_resp = await http.post(
+                "https://fal.media/files/upload",
+                headers={
+                    "Authorization": f"Key {fal_key}",
+                    "Content-Type": "application/zip",
+                },
+                content=zip_buf.getvalue(),
+            )
+            upload_resp.raise_for_status()
+            resp_json = upload_resp.json()
+            # fal.ai returns { "access_url": "https://fal.media/..." }
+            storage_url = resp_json.get("access_url") or resp_json.get("url") or ""
+            if not storage_url:
+                raise RuntimeError(f"fal.ai upload returned no URL: {resp_json}")
+            logger.info(f"LoRA training images uploaded: {storage_url}")
+
+        # Submit training job to the queue (returns immediately with request_id)
+        async with httpx.AsyncClient(timeout=30.0) as http:
+            train_resp = await http.post(
+                "https://queue.fal.run/fal-ai/flux-lora-fast-training",
+                headers={
+                    "Authorization": f"Key {fal_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "images_data_url": storage_url,
+                    "trigger_word": trigger_word,
+                    "steps": 1000,
+                    "is_style": False,
+                    "create_masks": True,
+                },
+            )
+            train_resp.raise_for_status()
+            request_id = train_resp.json()["request_id"]
+            logger.info(f"LoRA training job submitted: {request_id}")
+            return request_id
+
+    async def get_lora_status(self, request_id: str) -> dict:
+        """Poll fal.ai for LoRA training status.
+        Returns dict with keys: status, progress, lora_url (when done), error.
+        """
+        fal_key = os.getenv("FAL_KEY", "")
+        if not fal_key:
+            raise ValueError("FAL_KEY not configured in .env")
+
+        async with httpx.AsyncClient(timeout=30.0) as http:
+            status_resp = await http.get(
+                f"https://queue.fal.run/fal-ai/flux-lora-fast-training/requests/{request_id}/status",
+                headers={"Authorization": f"Key {fal_key}"},
+            )
+            status_resp.raise_for_status()
+            data = status_resp.json()
+            fal_status = data.get("status", "IN_QUEUE")
+
+            if fal_status == "COMPLETED":
+                result_resp = await http.get(
+                    f"https://queue.fal.run/fal-ai/flux-lora-fast-training/requests/{request_id}",
+                    headers={"Authorization": f"Key {fal_key}"},
+                )
+                result_resp.raise_for_status()
+                result = result_resp.json()
+                lora_url = (result.get("diffusers_lora_file") or {}).get("url", "")
+                logger.info(f"LoRA training completed: {lora_url}")
+                return {"status": "COMPLETED", "lora_url": lora_url, "progress": 100}
+
+            if fal_status == "FAILED":
+                err = str(data.get("error", "Training failed"))
+                logger.error(f"LoRA training failed: {err}")
+                return {"status": "FAILED", "lora_url": None, "progress": 0, "error": err}
+
+            # Extract progress from logs if available
+            logs = data.get("logs") or []
+            progress = 0
+            for log in reversed(logs):
+                msg = (log.get("message") or "").lower()
+                if "%" in msg:
+                    try:
+                        progress = int(msg.split("%")[0].split()[-1])
+                        break
+                    except Exception:
+                        pass
+
+            return {"status": fal_status, "lora_url": None, "progress": progress}
+
+    async def genimg_flux_lora(self, prompt: str, lora_url: str, size: str = "square_hd") -> list[str]:
+        """Generate images using a brand-specific trained LoRA on fal.ai Flux."""
+        fal_key = os.getenv("FAL_KEY", "")
+        if not fal_key:
+            raise ValueError("FAL_KEY not configured in .env")
+
+        size_map = {
+            "1:1": "square_hd", "square_hd": "square_hd",
+            "9:16": "portrait_4_3", "16:9": "landscape_4_3",
+            "4:3": "landscape_4_3", "3:4": "portrait_4_3",
+        }
+        fal_size = size_map.get(size, "square_hd")
+
+        async with httpx.AsyncClient(timeout=180.0) as http:
+            resp = await http.post(
+                "https://fal.run/fal-ai/flux-lora",
+                headers={
+                    "Authorization": f"Key {fal_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "prompt": prompt,
+                    "negative_prompt": "black frame, dark frame, carbon black, glossy black, dark bike, wrong color",
+                    "loras": [{"path": lora_url, "scale": 1.0}],
+                    "image_size": fal_size,
+                    "num_images": 1,
+                    "output_format": "jpeg",
+                    "safety_tolerance": "2",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            images = [item["url"] for item in data.get("images", []) if item.get("url")]
+            if not images:
+                raise RuntimeError(f"Flux LoRA returned no images: {data}")
+            return images
