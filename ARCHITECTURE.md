@@ -1,282 +1,199 @@
-# SHL Creative Hub — Project Architecture
+# Creative Hub — System Architecture
 
-**Version:** 1.0  
-**Date:** May 2026  
-**Stack:** React + Vite (frontend) · FastAPI + SQLAlchemy (backend) · metagptx SDK (AI/auth)
+**Version:** 3.0
+**Updated:** June 2026
+**Organisation:** Schoolhouse Lane
+**Stack:** React + Vite · FastAPI · PostgreSQL · fal.ai · Gemini · Grok
 
 ---
 
 ## 1. What This System Is
 
-A private creative operations platform for SHL (Schoolhouse Lane) that:
-
-- Receives full brief documents from clients (PDF, Word, image)
-- Manages brief lifecycle from intake to delivery
-- Gives clients their own portal to track progress and download assets
-- Connects to AI tools (Claude, Gemini, GPT Image, ElevenLabs, HeyGen, etc.) for asset generation
-- Manages brand profiles for all clients
-
-There are **two types of users**:
-| User Type | Who | What they see |
-|-----------|-----|---------------|
-| **Agency** | SHL team | Full app — all clients, all tools, all briefs |
-| **Client** | e.g. DataDirect | Only their own briefs, status, and completed assets |
+Creative Hub is Schoolhouse Lane's AI-powered creative operations platform. It combines brand management, multi-model AI image generation, a conversational creative assistant, LoRA model training per product, and a training feedback loop into one tool.
 
 ---
 
-## 2. Current Stack
+## 2. Directory Structure
 
 ```
 /app
-├── frontend/          React 18 + Vite + TypeScript
-│   ├── src/pages/     Dashboard, Brands, Workspace, Briefs, Settings
-│   ├── src/components/Sidebar, BriefForm, BrandProfile
-│   └── src/lib/       briefTypes.ts, AI tool configs
+├── frontend/                     React 18 + Vite + TypeScript
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── BrandsPage.tsx
+│   │   │   ├── BrandDetailPage.tsx       ← multi-LoRA training UI, feedback
+│   │   │   ├── BrandCreateWizard.tsx     ← 9-step Brand DNA wizard
+│   │   │   ├── AIWorkspacePage.tsx       ← main AI chat workspace
+│   │   │   ├── WorkspacePage.tsx         ← Prompt Hub
+│   │   │   ├── PromptLibraryPage.tsx
+│   │   │   ├── AssetGalleryPage.tsx
+│   │   │   └── BriefsPage.tsx
+│   │   ├── components/
+│   │   │   ├── Sidebar.tsx               ← Schoolhouse Lane logo, dark theme
+│   │   │   ├── FloatingClaudeChat.tsx    ← global Claude panel (all pages)
+│   │   │   └── ImageEditorModal.tsx      ← canvas logo/text overlay editor
+│   │   └── lib/
+│   │       ├── briefTypes.ts
+│   │       └── config.ts
 │
-├── backend/           Python 3.12 + FastAPI
-│   ├── routers/       briefs, brand_profiles, auth, storage, aihub
-│   ├── models/        SQLAlchemy ORM (briefs, brand_profiles)
-│   ├── services/      Business logic layer
-│   ├── schemas/       Pydantic request/response models
-│   └── core/          database.py, config
+├── backend/                      Python 3.12 + FastAPI
+│   ├── routers/
+│   │   ├── aihub.py              ← genimg, gentxt, genvideo, LoRA, Grok
+│   │   ├── brand_profiles.py
+│   │   ├── briefs.py
+│   │   ├── prompts.py
+│   │   ├── assets.py
+│   │   └── auth.py
+│   ├── services/
+│   │   └── aihub.py              ← all AI logic + LoRA training pipeline
+│   ├── models/                   SQLAlchemy ORM
+│   └── core/
+│       ├── database.py
+│       └── config.py
 │
-└── start_app_v2.sh    Starts both servers locally
+└── start_app_v2.sh
 ```
 
-**Frontend runs on:** `localhost:4000`  
-**Backend runs on:** `localhost:8000`  
-**Live frontend:** `https://frontend-nine-pearl-97.vercel.app`  
-**Auth provider:** metagptx (`@metagptx/web-sdk`)
+**Frontend:** `localhost:4001`
+**Backend:** `localhost:8000`
+**Auth:** metagptx (`@metagptx/web-sdk`)
 
 ---
 
-## 3. Database Schema (Current)
+## 3. Image Generation Pipeline
+
+```
+User Prompt
+    │
+    ├── Flux Pro selected?
+    │       ├── Brand has trained LoRA? → Flux LoRA (fal.ai)  ← most accurate
+    │       └── No LoRA?               → Flux Pro (fal.ai)
+    │
+    ├── Grok Image selected?
+    │       ├── Products pinned? → Gemini Vision describes each photo → inject as text
+    │       └── Send enriched prompt to xai/grok-imagine-image (fal.ai)
+    │
+    └── Gemini Pro selected?
+            ├── Products pinned? → inject as img2img reference images
+            ├── Layout pinned?  → inject as layout template
+            └── Brand context   → injected as system instruction
+```
+
+---
+
+## 4. LoRA Training System
+
+Each brand supports **multiple LoRA models** — one per product category (bike, jersey, helmet, etc.):
+
+```
+Brand DNA (brand_dna JSON)
+└── product_categories: [
+      {
+        id, name, trigger,               // e.g. "SHELBYBIKE"
+        images: [{name, url, caption}],  // base64 photos + per-image captions
+        caption_template,                // shared base caption with hex colors
+        lora_status, lora_url,           // fal.ai training output
+        lora_progress, lora_request_id
+      }
+    ]
+```
+
+**Training flow:**
+1. Upload photos + write caption template (exact colours, materials)
+2. Add per-image captions for specific angles/details
+3. Backend creates zip: `image_000.jpg` + `image_000.txt` (template + per-image combined)
+4. Upload to `fal.media/files/upload`
+5. Submit to `queue.fal.run/fal-ai/flux-lora-fast-training`
+6. Poll every 15s → save `lora_url` to `brand_dna` when COMPLETED
+
+**Iterative re-training feedback loop:**
+- 👍 liked generated images → stored in `brand_dna.training_feedback`
+- "Re-train with Feedback" → combines original photos + approved generations → new LoRA run
+- Each cycle improves colour and product accuracy
+
+---
+
+## 5. Database Schema
 
 ```sql
--- briefs table (exists)
-briefs
-  id                  INT PRIMARY KEY
-  user_id             VARCHAR        -- metagptx user ID (agency staff)
-  brief_type          VARCHAR        -- Social Media, Video, Brand Design, etc.
-  title               VARCHAR
-  status              VARCHAR        -- draft, in_progress, review, completed
-  brand_name          VARCHAR
-  project_description TEXT
-  target_audience     VARCHAR
-  tone_style          VARCHAR
-  key_message         VARCHAR
-  additional_notes    TEXT
-  form_data           TEXT           -- JSON blob of extra fields
-  ai_tool             VARCHAR
-  generated_asset_url VARCHAR
-  priority            VARCHAR
-  created_at          TIMESTAMP
-  updated_at          TIMESTAMP
-
--- brand_profiles table (exists)
 brand_profiles
-  id, user_id, name, industry, colors, fonts, ...
+  id, user_id, brand_name, primary_color, secondary_color, accent_color,
+  font_heading, font_body, tone_of_voice, logo_url, tagline, industry,
+  guidelines_notes, brand_dna (TEXT/JSON), chat_history,
+  created_at, updated_at
+
+briefs
+  id, user_id, brief_type, title, status, brand_name,
+  project_description, target_audience, tone_style,
+  ai_tool, generated_asset_url, priority, created_at
+
+prompts
+  id, user_id, title, tool, category, text, created_at, updated_at
+
+assets
+  id, user_id, brand_id, brand_name, title, asset_type, content_type,
+  ai_tool, url, prompt, chat_history, created_at
 ```
 
 ---
 
-## 4. Planned Features
+## 6. API Reference
 
-### 4.1 Brief Document Upload
-
-**What it does:** Client sends SHL a PDF or Word brief. Agency staff upload it to the Hub. The file is stored and attached to a brief record.
-
-**No AI parsing for now** — just raw document storage. The brief record holds a link to the file.
-
-**Changes needed:**
-
-```
-Database — add 1 column to briefs table:
-  brief_file_url    VARCHAR    -- URL to the uploaded document in storage
-
-Backend — add 1 endpoint:
-  POST /api/v1/briefs/upload
-    accepts: multipart/form-data (file + brief_id or new brief metadata)
-    saves file to: Supabase Storage / Cloudflare R2
-    returns: { brief_id, file_url }
-
-Frontend — add upload UI to NewBrief page:
-  - Drag & drop zone (PDF, DOCX, PNG, JPG)
-  - On upload: show file preview + "Save Brief" button
-  - Stored file linked to the brief record
-```
-
-**File storage options (pick one):**
-| Option | Cost | Setup |
-|--------|------|-------|
-| Supabase Storage | Free up to 1GB | Easy, already has Python SDK |
-| Cloudflare R2 | $0.015/GB | S3-compatible, very cheap |
-| AWS S3 | $0.023/GB | Standard, well-documented |
-
-**Recommendation:** Supabase Storage — simplest to set up, free tier covers early usage, Python client already available.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/aihub/genimg` | Gemini image generation (img2img, product refs) |
+| POST | `/api/v1/aihub/genimg-flux` | Flux Pro via fal.ai |
+| POST | `/api/v1/aihub/genimg-lora` | Flux + trained brand LoRA |
+| POST | `/api/v1/aihub/genimg-grok` | Grok Imagine + Gemini Vision bridge |
+| POST | `/api/v1/aihub/gentxt` | Streaming text generation (SSE) |
+| POST | `/api/v1/aihub/genvideo` | Video generation |
+| POST | `/api/v1/aihub/train-lora` | Start LoRA training job on fal.ai |
+| GET | `/api/v1/aihub/train-lora/{id}` | Poll training status + progress |
+| POST | `/api/v1/aihub/extract-brand-dna` | Extract brand DNA from PDF/PNG |
+| GET | `/api/config` | Runtime config for frontend |
+| CRUD | `/api/v1/entities/{entity}` | brand_profiles, briefs, prompts, assets |
 
 ---
 
-### 4.2 Client Portal
+## 7. Environment Variables
 
-**What it does:** Clients (e.g. DataDirect) get their own login. They see only their briefs — no other client's data. They can track progress and download completed assets.
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://...
 
-**This requires a separate auth layer for clients.**
+# Text + Image AI (Gemini via OpenAI-compatible endpoint)
+APP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+APP_AI_KEY=...
 
-**Changes needed:**
+# Image AI — Flux Pro, Flux LoRA, Grok (fal.ai)
+FAL_KEY=...
 
-```
-Database — add 2 new tables:
-
-  client_users
-    id              INT PRIMARY KEY
-    email           VARCHAR UNIQUE
-    password_hash   VARCHAR
-    brand_id        INT FK → brand_profiles.id
-    created_at      TIMESTAMP
-
-  brief_completion
-    id              INT PRIMARY KEY
-    brief_id        INT FK → briefs.id
-    percentage      INT (0–100)
-    stage           VARCHAR (briefing/production/review/delivered)
-    notes           TEXT
-    updated_at      TIMESTAMP
-
-Backend — add new router: /api/v1/client/
-  POST /client/auth/login         → returns JWT for client session
-  GET  /client/briefs             → returns briefs WHERE brand = client's brand
-  GET  /client/briefs/{id}        → single brief + completion %
-  GET  /client/briefs/{id}/assets → signed download URLs for completed files
-
-Frontend — add new route group: /client/*
-  /client/login       → client login page (email + password)
-  /client/dashboard   → brief cards with progress bars
-  /client/briefs/{id} → brief detail: status, stage tracker, asset downloads
-```
-
-**Auth flow:**
-
-```
-Client visits → /client/login
-  → POST /api/v1/client/auth/login
-  → backend verifies email/password, returns JWT
-  → JWT stored in localStorage
-  → all /client/* API calls include Authorization: Bearer {JWT}
-  → backend middleware checks JWT, attaches brand_id to request
-  → all queries filtered by that brand_id automatically
-```
-
-**Completion % logic:**
-Agency staff update the `brief_completion` table manually (or automatically when status changes). Client sees the current %. Stages map to approximate %:
-
-| Stage | % |
-|-------|---|
-| Briefing | 10% |
-| In Production | 40–70% |
-| In Review | 85% |
-| Delivered | 100% |
-
----
-
-## 5. API Routes (Full Map)
-
-```
-/api/v1/
-│
-├── auth/                        (metagptx — agency auth)
-│   ├── login, logout, me
-│
-├── entities/
-│   ├── briefs/                  CRUD for briefs
-│   │   ├── GET    /             list all (agency)
-│   │   ├── POST   /             create brief
-│   │   ├── GET    /{id}         single brief
-│   │   ├── PUT    /{id}         update brief
-│   │   ├── DELETE /{id}         delete brief
-│   │   └── POST   /upload       NEW: upload brief document
-│   │
-│   └── brand_profiles/          CRUD for brands
-│
-├── client/                      NEW: client portal
-│   ├── POST   /auth/login        client login
-│   ├── GET    /briefs            client's own briefs
-│   ├── GET    /briefs/{id}       brief detail + progress
-│   └── GET    /briefs/{id}/assets  download links
-│
-├── aihub/                       AI generation
-│   ├── POST   /generate/text
-│   ├── POST   /generate/image
-│   └── POST   /generate/video
-│
-└── storage/                     File management
-    ├── POST   /upload
-    └── GET    /files/{id}
+# Auth
+SECRET_KEY=...
+DEV_AUTH_BYPASS=true   # development only
 ```
 
 ---
 
-## 6. Frontend Route Map
+## 8. North Star Architecture (Roadmap)
+
+Target pipeline per the brand AI vision document:
 
 ```
-/ (agency)
-├── /                  Dashboard — stats, recent briefs, quick actions
-├── /brands            Brand Management — all client brand profiles
-├── /workspace         Prompt Hub — AI asset generation
-├── /chat              AI Workspace — chat with AI tools
-├── /gallery           Asset Gallery — all generated assets
-├── /templates         Template Library
-├── /briefs            Client Briefs — list all briefs
-├── /briefs/new        New Brief — upload doc or fill form
-├── /briefs/:id        Brief Detail — full brief + AI generation
-└── /settings          Settings — AI tools, platform config
-
-/client (client portal — separate auth)
-├── /client/login      Client login
-├── /client/dashboard  My Briefs overview
-└── /client/briefs/:id Brief progress + asset downloads
+User Prompt
+    ↓
+Prompt Enhancer      auto-selects LoRA triggers from prompt keywords
+    ↓
+Asset Retriever      loads correct LoRA URLs + logo SVG files
+    ↓
+Image Generation     Flux Kontext + separate brand LoRA per product SKU
+    ↓
+Logo Placement       Gemini Vision detects placement zones → PIL composites SVG
+    ↓
+Quality Pass         upscaling, colour grading
+    ↓
+Final Image          pixel-perfect branding, correct product colours
 ```
 
----
-
-## 7. Build Order (Recommended)
-
-**Phase 1 — Brief Upload (1–2 days)**
-1. Add `brief_file_url` column to briefs table (Alembic migration)
-2. Set up Supabase Storage bucket
-3. Add `POST /api/v1/briefs/upload` endpoint
-4. Update NewBrief page with drag & drop upload UI
-
-**Phase 2 — Completion Tracking (1 day)**
-1. Add `brief_completion` table
-2. Add completion update to BriefDetail page (agency side)
-3. Show progress bar on BriefsPage list
-
-**Phase 3 — Client Portal (3–4 days)**
-1. Add `client_users` table + JWT auth
-2. Build `/api/v1/client/*` endpoints
-3. Build `/client/*` frontend pages (login, dashboard, brief detail)
-4. Test data isolation (client can only see their brand's briefs)
-
----
-
-## 8. Security Notes
-
-- Client JWT tokens expire after 7 days (refresh on activity)
-- File uploads: validate MIME type server-side (not just extension)
-- Client API routes: always filter by `brand_id` from JWT — never trust client-sent IDs
-- File download URLs: use signed/expiring URLs (Supabase Storage supports this natively)
-- Never expose agency users' data through client endpoints
-
----
-
-## 9. Deployment
-
-| Component | Platform | Notes |
-|-----------|----------|-------|
-| Frontend | Vercel | `vercel --prod` from `/app/frontend` |
-| Backend | AWS Lambda (existing) | `lambda_handler.py` entry point |
-| Database | PostgreSQL (existing) | managed via Alembic migrations |
-| File Storage | Supabase Storage (planned) | free tier for now |
-| Auth (agency) | metagptx | existing, no changes |
-| Auth (client) | Custom JWT | new, built in-house |
+**Sprints remaining:** Multi-LoRA selector UI → SVG logo pipeline → Prompt intelligence → Flux Kontext upgrade → Quality pipeline
