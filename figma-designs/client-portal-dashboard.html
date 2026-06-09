@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Portal — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0F0F11;
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      min-height: 100vh;
+      background: #18181B;
+      border-right: 1px solid #2A2A2E;
+      display: flex;
+      flex-direction: column;
+      padding: 28px 16px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 8px;
+      margin-bottom: 36px;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #7C3AED, #06B6D4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: #FFFFFF;
+      letter-spacing: -0.2px;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #4B4B52;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #8B8B94;
+      margin-bottom: 2px;
+      transition: background 0.15s, color 0.15s;
+      text-decoration: none;
+    }
+
+    .nav-item:hover { background: #1F1F24; color: #FFFFFF; }
+
+    .nav-item.active {
+      background: rgba(124, 58, 237, 0.15);
+      color: #FFFFFF;
+    }
+
+    .nav-item.active .nav-icon { color: #7C3AED; }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: #7C3AED;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      border-top: 1px solid #2A2A2E;
+      padding-top: 16px;
+    }
+
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .sidebar-user:hover { background: #1F1F24; }
+
+    .user-avatar-sm {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-meta { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 600; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: 11px; color: #4B4B52; }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      height: 68px;
+      border-bottom: 1px solid #2A2A2E;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      gap: 16px;
+      background: #0F0F11;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-greeting { flex: 1; }
+
+    .header-greeting h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.4px;
+    }
+
+    .header-greeting p {
+      font-size: 13px;
+      color: #4B4B52;
+      margin-top: 1px;
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: #18181B;
+      border: 1px solid #2A2A2E;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #8B8B94;
+      position: relative;
+    }
+
+    .icon-btn:hover { border-color: #3A3A42; color: #FFFFFF; }
+
+    .notif-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 7px;
+      height: 7px;
+      background: #7C3AED;
+      border-radius: 50%;
+      border: 2px solid #0F0F11;
+    }
+
+    .header-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      border: 2px solid #2A2A2E;
+    }
+
+    .new-brief-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 18px;
+      height: 38px;
+      background: linear-gradient(135deg, #7C3AED, #06B6D4);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: -0.1px;
+    }
+
+    .new-brief-btn:hover { opacity: 0.9; }
+
+    /* ── Page body ── */
+    .page-body {
+      flex: 1;
+      padding: 32px;
+    }
+
+    /* ── Stats row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: #18181B;
+      border: 1px solid #2A2A2E;
+      border-radius: 14px;
+      padding: 20px 22px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .stat-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .stat-icon.purple { background: rgba(124,58,237,0.15); }
+    .stat-icon.blue   { background: rgba(59,130,246,0.15); }
+    .stat-icon.amber  { background: rgba(245,158,11,0.15); }
+    .stat-icon.green  { background: rgba(16,185,129,0.15); }
+
+    .stat-icon svg { width: 20px; height: 20px; }
+    .stat-icon.purple svg { color: #7C3AED; }
+    .stat-icon.blue   svg { color: #3B82F6; }
+    .stat-icon.amber  svg { color: #F59E0B; }
+    .stat-icon.green  svg { color: #10B981; }
+
+    .stat-body { flex: 1; }
+    .stat-label { font-size: 12px; color: #4B4B52; font-weight: 500; margin-bottom: 4px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #FFFFFF; letter-spacing: -1px; }
+    .stat-sub { font-size: 11px; color: #4B4B52; margin-top: 2px; }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.3px;
+    }
+
+    .section-link {
+      font-size: 12px;
+      color: #7C3AED;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .section-link:hover { color: #9055FF; }
+
+    /* ── Filter tabs ── */
+    .filter-tabs {
+      display: flex;
+      gap: 4px;
+      background: #18181B;
+      border: 1px solid #2A2A2E;
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .filter-tab {
+      padding: 6px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #8B8B94;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .filter-tab.active {
+      background: #2A2A2E;
+      color: #FFFFFF;
+    }
+
+    /* ── Brief cards grid ── */
+    .briefs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .brief-card {
+      background: #18181B;
+      border: 1px solid #2A2A2E;
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .brief-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brief-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .tag-marketing { background: rgba(124,58,237,0.15); color: #9055FF; }
+    .tag-design    { background: rgba(59,130,246,0.15); color: #60A5FA; }
+    .tag-social    { background: rgba(16,185,129,0.15); color: #34D399; }
+    .tag-brand     { background: rgba(245,158,11,0.15); color: #FBBF24; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+
+    .badge-inprogress { background: rgba(59,130,246,0.12); color: #60A5FA; }
+    .badge-inprogress::before { background: #3B82F6; }
+
+    .badge-inreview { background: rgba(245,158,11,0.12); color: #FBBF24; }
+    .badge-inreview::before { background: #F59E0B; }
+
+    .badge-completed { background: rgba(16,185,129,0.12); color: #34D399; }
+    .badge-completed::before { background: #10B981; }
+
+    .brief-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.3px;
+      line-height: 1.3;
+    }
+
+    .brief-desc {
+      font-size: 13px;
+      color: #4B4B52;
+      line-height: 1.55;
+    }
+
+    .brief-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #4B4B52;
+    }
+
+    .meta-item svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* ── Progress pipeline ── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .pipeline-step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      position: relative;
+    }
+
+    .pipeline-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 9px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: #2A2A2E;
+      z-index: 0;
+    }
+
+    .pipeline-step.done:not(:last-child)::after { background: #7C3AED; }
+
+    .pipeline-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #2A2A2E;
+      background: #18181B;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .pipeline-step.done .pipeline-dot {
+      background: #7C3AED;
+      border-color: #7C3AED;
+    }
+
+    .pipeline-step.active .pipeline-dot {
+      border-color: #7C3AED;
+      background: #18181B;
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
+    }
+
+    .pipeline-label {
+      font-size: 10px;
+      color: #4B4B52;
+      font-weight: 500;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .pipeline-step.done .pipeline-label,
+    .pipeline-step.active .pipeline-label { color: #8B8B94; }
+
+    /* ── Progress bar ── */
+    .progress-bar {
+      height: 3px;
+      background: #2A2A2E;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7C3AED, #06B6D4);
+      border-radius: 10px;
+    }
+
+    /* ── Card actions ── */
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      padding-top: 4px;
+      border-top: 1px solid #2A2A2E;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      height: 36px;
+      background: #1F1F24;
+      border: 1px solid #2A2A2E;
+      border-radius: 8px;
+      color: #8B8B94;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: border-color 0.12s, color 0.12s;
+    }
+
+    .btn-secondary:hover { border-color: #3A3A42; color: #FFFFFF; }
+
+    .btn-primary-sm {
+      flex: 1;
+      height: 36px;
+      background: linear-gradient(135deg, #7C3AED, #06B6D4);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-primary-sm:hover { opacity: 0.88; }
+
+    /* ── Deliverables counter ── */
+    .deliverables {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #4B4B52;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">SHL</div>
+      <span class="logo-text">Creative Hub</span>
+    </div>
+
+    <div class="nav-label" style="margin-top:0">Menu</div>
+
+    <a class="nav-item active" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"/></svg>
+      My Briefs
+      <span class="nav-badge">5</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm7 5a1 1 0 10-2 0v1H8a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd"/></svg>
+      Assets Ready
+      <span class="nav-badge" style="background:#10B981">2</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
+      Messages
+    </a>
+
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+      Profile
+    </a>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar-sm">DD</div>
+        <div class="user-meta">
+          <div class="user-name">DataDirect</div>
+          <div class="user-role">Client Portal</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="#4B4B52"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-greeting">
+        <h1>Welcome back, DataDirect 👋</h1>
+        <p>Monday, 25 May 2026 · Here's what's happening with your briefs</p>
+      </div>
+      <div class="header-actions">
+        <div class="icon-btn">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z"/></svg>
+          <span class="notif-dot"></span>
+        </div>
+        <div class="header-avatar">DD</div>
+        <button class="new-brief-btn" onclick="location.href='client-portal-new-brief.html'">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+          New Brief
+        </button>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="page-body">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <svg viewBox="0 0 20 20" fill="currentColor" color="#7C3AED"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-label">Total Briefs</div>
+            <div class="stat-value">5</div>
+            <div class="stat-sub">All time</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <svg viewBox="0 0 20 20" fill="currentColor" color="#3B82F6"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-value">2</div>
+            <div class="stat-sub">Active now</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <svg viewBox="0 0 20 20" fill="currentColor" color="#F59E0B"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-label">In Review</div>
+            <div class="stat-value">1</div>
+            <div class="stat-sub">Awaiting your feedback</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg viewBox="0 0 20 20" fill="currentColor" color="#10B981"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value">2</div>
+            <div class="stat-sub">Delivered</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Briefs -->
+      <div class="section-header">
+        <span class="section-title">Your Active Briefs</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="filter-tabs">
+            <div class="filter-tab active">All</div>
+            <div class="filter-tab">In Progress</div>
+            <div class="filter-tab">In Review</div>
+            <div class="filter-tab">Completed</div>
+          </div>
+          <a class="section-link" href="#">View all →</a>
+        </div>
+      </div>
+
+      <div class="briefs-grid">
+
+        <!-- Brief 1 -->
+        <div class="brief-card">
+          <div class="brief-card-top">
+            <div>
+              <span class="brief-tag tag-marketing">Digital Marketing</span>
+              <div class="brief-title" style="margin-top:10px;">Q3 Social Media Campaign</div>
+            </div>
+            <span class="status-badge badge-inprogress">In Progress</span>
+          </div>
+
+          <p class="brief-desc">Multi-platform campaign targeting B2B decision-makers across LinkedIn and X. Includes 12 posts, 3 short-form videos, and monthly performance reports.</p>
+
+          <div class="brief-meta">
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+              Due 14 Jun 2026
+            </div>
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 000-2H7zM4 7a1 1 0 011-1h10a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V7zm1 4a1 1 0 000 2h10a1 1 0 000-2H5z"/></svg>
+              6 deliverables
+            </div>
+          </div>
+
+          <!-- Pipeline -->
+          <div>
+            <div class="pipeline">
+              <div class="pipeline-step done">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">Briefing</div>
+              </div>
+              <div class="pipeline-step done">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">In Production</div>
+              </div>
+              <div class="pipeline-step active">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">In Review</div>
+              </div>
+              <div class="pipeline-step">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">Delivered</div>
+              </div>
+            </div>
+            <div class="progress-bar" style="margin-top:14px;">
+              <div class="progress-fill" style="width:65%"></div>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button class="btn-secondary">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd"/></svg>
+              Leave Feedback
+            </button>
+            <button class="btn-primary-sm">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              Download All
+            </button>
+          </div>
+        </div>
+
+        <!-- Brief 2 -->
+        <div class="brief-card">
+          <div class="brief-card-top">
+            <div>
+              <span class="brief-tag tag-design">Brand Design</span>
+              <div class="brief-title" style="margin-top:10px;">Website Redesign — DataDirect.ie</div>
+            </div>
+            <span class="status-badge badge-inreview">In Review</span>
+          </div>
+
+          <p class="brief-desc">Full redesign of the DataDirect website including new homepage, product pages, and refreshed brand assets aligned with 2026 brand guidelines.</p>
+
+          <div class="brief-meta">
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+              Due 30 Jun 2026
+            </div>
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 000-2H7zM4 7a1 1 0 011-1h10a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V7zm1 4a1 1 0 000 2h10a1 1 0 000-2H5z"/></svg>
+              4 deliverables
+            </div>
+          </div>
+
+          <div>
+            <div class="pipeline">
+              <div class="pipeline-step done">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">Briefing</div>
+              </div>
+              <div class="pipeline-step done">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">In Production</div>
+              </div>
+              <div class="pipeline-step done">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">In Review</div>
+              </div>
+              <div class="pipeline-step active">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">Delivered</div>
+              </div>
+            </div>
+            <div class="progress-bar" style="margin-top:14px;">
+              <div class="progress-fill" style="width:85%"></div>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button class="btn-secondary">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd"/></svg>
+              Leave Feedback
+            </button>
+            <button class="btn-primary-sm">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              Download All
+            </button>
+          </div>
+        </div>
+
+        <!-- Brief 3 -->
+        <div class="brief-card">
+          <div class="brief-card-top">
+            <div>
+              <span class="brief-tag tag-social">Video Content</span>
+              <div class="brief-title" style="margin-top:10px;">Explainer Video Series — 3 Episodes</div>
+            </div>
+            <span class="status-badge badge-inprogress">In Progress</span>
+          </div>
+
+          <p class="brief-desc">Three short-form explainer videos (60–90 sec each) covering DataDirect's core product features. Animated with voiceover and captions.</p>
+
+          <div class="brief-meta">
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+              Due 22 Jul 2026
+            </div>
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 000-2H7zM4 7a1 1 0 011-1h10a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V7zm1 4a1 1 0 000 2h10a1 1 0 000-2H5z"/></svg>
+              3 deliverables
+            </div>
+          </div>
+
+          <div>
+            <div class="pipeline">
+              <div class="pipeline-step done">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">Briefing</div>
+              </div>
+              <div class="pipeline-step active">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">In Production</div>
+              </div>
+              <div class="pipeline-step">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">In Review</div>
+              </div>
+              <div class="pipeline-step">
+                <div class="pipeline-dot"></div>
+                <div class="pipeline-label">Delivered</div>
+              </div>
+            </div>
+            <div class="progress-bar" style="margin-top:14px;">
+              <div class="progress-fill" style="width:35%"></div>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button class="btn-secondary">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd"/></svg>
+              Leave Feedback
+            </button>
+            <button class="btn-secondary">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 100 4v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2a2 2 0 100-4V6z"/></svg>
+              View Details
+            </button>
+          </div>
+        </div>
+
+        <!-- Brief 4 — Completed -->
+        <div class="brief-card" style="opacity:0.7;">
+          <div class="brief-card-top">
+            <div>
+              <span class="brief-tag tag-brand">Brand Identity</span>
+              <div class="brief-title" style="margin-top:10px;">2026 Brand Guidelines Refresh</div>
+            </div>
+            <span class="status-badge badge-completed">Completed</span>
+          </div>
+
+          <p class="brief-desc">Updated brand guidelines document including revised typography scale, new icon library, and refreshed colour palette for digital and print use.</p>
+
+          <div class="brief-meta">
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+              Delivered 10 Apr 2026
+            </div>
+            <div class="meta-item">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 000-2H7zM4 7a1 1 0 011-1h10a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V7zm1 4a1 1 0 000 2h10a1 1 0 000-2H5z"/></svg>
+              8 deliverables
+            </div>
+          </div>
+
+          <div>
+            <div class="pipeline">
+              <div class="pipeline-step done"><div class="pipeline-dot"></div><div class="pipeline-label">Briefing</div></div>
+              <div class="pipeline-step done"><div class="pipeline-dot"></div><div class="pipeline-label">In Production</div></div>
+              <div class="pipeline-step done"><div class="pipeline-dot"></div><div class="pipeline-label">In Review</div></div>
+              <div class="pipeline-step done"><div class="pipeline-dot"></div><div class="pipeline-label">Delivered</div></div>
+            </div>
+            <div class="progress-bar" style="margin-top:14px;">
+              <div class="progress-fill" style="width:100%; background: linear-gradient(90deg,#10B981,#34D399);"></div>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button class="btn-primary-sm" style="flex:1;">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              Download All Assets
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

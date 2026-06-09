@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Brand Management — List</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #F5F3EF;
+    width: 1920px;
+    height: 1200px;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 373px;
+    min-width: 373px;
+    height: 1200px;
+    background: #1E1E20;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    position: relative;
+    border-right: 1px solid #2a2a2d;
+  }
+
+  .sidebar-logo {
+    padding: 36px 47px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .sidebar-logo .wordmark {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+  }
+  .sidebar-logo .sub {
+    font-size: 11px;
+    color: #908F8E;
+    margin-top: 3px;
+  }
+
+  .sidebar-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #595959;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 20px 47px 10px;
+  }
+
+  .nav-list {
+    list-style: none;
+    padding: 0 12px;
+    flex: 1;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    height: 40px;
+    border-radius: 50px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    color: rgba(255,255,255,0.55);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.15s;
+  }
+
+  .nav-item.active {
+    background: rgba(255,255,255,0.11);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .nav-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.3);
+    flex-shrink: 0;
+  }
+  .nav-item.active .nav-dot {
+    background: rgba(255,255,255,0.9);
+  }
+
+  .nav-separator {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 8px 47px;
+  }
+
+  .sidebar-tools {
+    padding: 16px 47px 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .sidebar-tools-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #595959;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.5;
+  }
+  .tools-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tool-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50px;
+    padding: 4px 10px 4px 8px;
+    font-size: 10px;
+    color: #908F8E;
+  }
+  .tool-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 47px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C44F0, #06B6D4);
+    flex-shrink: 0;
+  }
+  .user-name {
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    font-weight: 500;
+  }
+
+  /* ── Content ── */
+  .content {
+    flex: 1;
+    height: 1200px;
+    background: #F5F3EF;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-header {
+    padding: 56px 72px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .page-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1E1E20;
+    line-height: 1.2;
+  }
+  .page-header p {
+    font-size: 15px;
+    color: #595959;
+    margin-top: 6px;
+    font-weight: 400;
+  }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1E1E20;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 22px;
+    height: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 72px 0;
+  }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #D6D6D6;
+    border-radius: 10px;
+    padding: 0 14px;
+    height: 44px;
+    width: 308px;
+  }
+  .search-icon {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #C5C4C3;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .search-icon::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    right: -3px;
+    width: 5px;
+    height: 2px;
+    background: #C5C4C3;
+    border-radius: 1px;
+    transform: rotate(45deg);
+  }
+  .search-placeholder {
+    font-size: 14px;
+    color: #908F8E;
+  }
+
+  .sort-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #D6D6D6;
+    border-radius: 10px;
+    padding: 0 14px;
+    height: 44px;
+    font-size: 14px;
+    color: #1E1E20;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sort-arrow { font-size: 11px; color: #908F8E; }
+
+  .view-toggle {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #D6D6D6;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 44px;
+  }
+  .view-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    color: #908F8E;
+  }
+  .view-btn.active {
+    background: #F5F3EF;
+    color: #1E1E20;
+  }
+
+  /* ── Card Grid ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 452px);
+    gap: 20px;
+    padding: 28px 72px 0;
+  }
+
+  .brand-card {
+    background: #fff;
+    border: 1px solid #D6D6D6;
+    border-radius: 16px;
+    padding: 20px;
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-accent {
+    position: absolute;
+    left: 0;
+    top: 16px;
+    width: 4px;
+    height: calc(100% - 32px);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .card-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .card-eye {
+    width: 32px;
+    height: 32px;
+    background: #F5F3EF;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #908F8E;
+    cursor: pointer;
+  }
+
+  .card-body {
+    padding-left: 56px;
+    margin-top: -44px;
+  }
+
+  .card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1E1E20;
+    margin-bottom: 3px;
+  }
+  .card-dna {
+    font-size: 12px;
+    color: #908F8E;
+  }
+
+  .card-swatches {
+    display: flex;
+    gap: 6px;
+    margin-top: 16px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 0 1px #D6D6D6;
+  }
+
+  .card-footer {
+    margin-top: auto;
+    border-top: 1px solid rgba(214,214,214,0.6);
+    padding-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-date {
+    font-size: 11px;
+    color: #C5C4C3;
+  }
+
+  .dna-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  .dna-pct {
+    font-size: 10px;
+    color: #908F8E;
+  }
+  .dna-bar-bg {
+    width: 80px;
+    height: 4px;
+    background: #E8E6E0;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .dna-bar-fg {
+    height: 100%;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="wordmark">School House Lane</div>
+    <div class="sub">Creative Hub</div>
+  </div>
+
+  <div class="sidebar-section-label">Workspace</div>
+
+  <ul class="nav-list">
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Dashboard</a></li>
+    <li><a class="nav-item active" href="#"><span class="nav-dot"></span>Brand Management</a></li>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Prompt Library</a></li>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>AI Workspace</a></li>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Asset Gallery</a></li>
+
+    <div class="nav-separator"></div>
+
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Client Briefs</a></li>
+
+    <div class="nav-separator"></div>
+
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Settings</a></li>
+  </ul>
+
+  <div class="sidebar-tools">
+    <div class="sidebar-tools-label">Connected Tools</div>
+    <div class="tools-row">
+      <span class="tool-badge"><span class="tool-dot" style="background:#7C44F0"></span>Claude</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#33CC99"></span>NanoBanana</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#F59E0B"></span>ElevenLabs</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#FF7070"></span>HeyGen</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#06B6D4"></span>Figma</span>
+    </div>
+  </div>
+
+  <div class="sidebar-user">
+    <div class="user-avatar"></div>
+    <div class="user-name">Leona Bobi</div>
+  </div>
+</aside>
+
+<!-- ── CONTENT ── -->
+<main class="content">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Brand Management</h1>
+      <p>Manage brand guidelines and assets for all your clients.</p>
+    </div>
+    <button class="btn-primary">
+      <span style="font-size:16px">+</span> Create New Brand
+    </button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <div class="search-icon"></div>
+      <span class="search-placeholder">Search by client name</span>
+    </div>
+    <div class="sort-box">Last Viewed <span class="sort-arrow">▾</span></div>
+    <div class="view-toggle">
+      <div class="view-btn active">⊞</div>
+      <div class="view-btn">☰</div>
+    </div>
+  </div>
+
+  <!-- Card Grid -->
+  <div class="card-grid">
+
+    <!-- Card 1: DataDirect -->
+    <div class="brand-card">
+      <div class="card-accent" style="background: linear-gradient(180deg,#2563EB,#0EA5E9)"></div>
+      <div class="card-top">
+        <div class="card-avatar" style="background: linear-gradient(135deg,#2563EB,#0EA5E9)">DD</div>
+        <div class="card-eye">◉</div>
+      </div>
+      <div class="card-body">
+        <div class="card-name">DataDirect</div>
+        <div class="card-dna">Brand DNA · Technology</div>
+      </div>
+      <div class="card-swatches">
+        <div class="swatch" style="background:#2563EB"></div>
+        <div class="swatch" style="background:#0EA5E9"></div>
+        <div class="swatch" style="background:#F59E0B"></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">Added 13.05.2026</span>
+        <div class="dna-bar-wrap">
+          <span class="dna-pct">82% complete</span>
+          <div class="dna-bar-bg"><div class="dna-bar-fg" style="width:82%;background:linear-gradient(90deg,#2563EB,#0EA5E9)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Shelby Cycles -->
+    <div class="brand-card">
+      <div class="card-accent" style="background: linear-gradient(180deg,#7C44F0,#06B6D4)"></div>
+      <div class="card-top">
+        <div class="card-avatar" style="background: linear-gradient(135deg,#7C44F0,#06B6D4)">SC</div>
+        <div class="card-eye">◉</div>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Shelby Cycles</div>
+        <div class="card-dna">Brand DNA · Cycling</div>
+      </div>
+      <div class="card-swatches">
+        <div class="swatch" style="background:#7C44F0"></div>
+        <div class="swatch" style="background:#06B6D4"></div>
+        <div class="swatch" style="background:#F59E0B"></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">Added 12.05.2026</span>
+        <div class="dna-bar-wrap">
+          <span class="dna-pct">68% complete</span>
+          <div class="dna-bar-bg"><div class="dna-bar-fg" style="width:68%;background:linear-gradient(90deg,#7C44F0,#06B6D4)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Real Man Wipes -->
+    <div class="brand-card">
+      <div class="card-accent" style="background: linear-gradient(180deg,#059669,#34D399)"></div>
+      <div class="card-top">
+        <div class="card-avatar" style="background: linear-gradient(135deg,#059669,#34D399)">RM</div>
+        <div class="card-eye">◉</div>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Real Man Wipes</div>
+        <div class="card-dna">Brand DNA · Retail</div>
+      </div>
+      <div class="card-swatches">
+        <div class="swatch" style="background:#059669"></div>
+        <div class="swatch" style="background:#34D399"></div>
+        <div class="swatch" style="background:#1E1E20"></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">Added 10.05.2026</span>
+        <div class="dna-bar-wrap">
+          <span class="dna-pct">54% complete</span>
+          <div class="dna-bar-bg"><div class="dna-bar-fg" style="width:54%;background:linear-gradient(90deg,#059669,#34D399)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Vivo Hotel -->
+    <div class="brand-card">
+      <div class="card-accent" style="background: linear-gradient(180deg,#D97706,#F59E0B)"></div>
+      <div class="card-top">
+        <div class="card-avatar" style="background: linear-gradient(135deg,#D97706,#F59E0B)">VH</div>
+        <div class="card-eye">◉</div>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Vivo Hotel</div>
+        <div class="card-dna">Brand DNA · Travel</div>
+      </div>
+      <div class="card-swatches">
+        <div class="swatch" style="background:#D97706"></div>
+        <div class="swatch" style="background:#F59E0B"></div>
+        <div class="swatch" style="background:#fff;border-color:#D6D6D6"></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">Added 08.05.2026</span>
+        <div class="dna-bar-wrap">
+          <span class="dna-pct">91% complete</span>
+          <div class="dna-bar-bg"><div class="dna-bar-fg" style="width:91%;background:linear-gradient(90deg,#D97706,#F59E0B)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5: DataDirect Intelligence -->
+    <div class="brand-card">
+      <div class="card-accent" style="background: linear-gradient(180deg,#7C44F0,#A78BFA)"></div>
+      <div class="card-top">
+        <div class="card-avatar" style="background: linear-gradient(135deg,#7C44F0,#A78BFA)">DI</div>
+        <div class="card-eye">◉</div>
+      </div>
+      <div class="card-body">
+        <div class="card-name">DataDirect Intelligence</div>
+        <div class="card-dna">Brand DNA · Technology</div>
+      </div>
+      <div class="card-swatches">
+        <div class="swatch" style="background:#7C44F0"></div>
+        <div class="swatch" style="background:#A78BFA"></div>
+        <div class="swatch" style="background:#06B6D4"></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">Added 05.05.2026</span>
+        <div class="dna-bar-wrap">
+          <span class="dna-pct">45% complete</span>
+          <div class="dna-bar-bg"><div class="dna-bar-fg" style="width:45%;background:linear-gradient(90deg,#7C44F0,#A78BFA)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6: SchoolHouse Lane -->
+    <div class="brand-card">
+      <div class="card-accent" style="background: linear-gradient(180deg,#0891B2,#22D3EE)"></div>
+      <div class="card-top">
+        <div class="card-avatar" style="background: linear-gradient(135deg,#0891B2,#22D3EE)">SL</div>
+        <div class="card-eye">◉</div>
+      </div>
+      <div class="card-body">
+        <div class="card-name">SchoolHouse Lane</div>
+        <div class="card-dna">Brand DNA · Education</div>
+      </div>
+      <div class="card-swatches">
+        <div class="swatch" style="background:#0891B2"></div>
+        <div class="swatch" style="background:#22D3EE"></div>
+        <div class="swatch" style="background:#1E1E20"></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">Added 01.05.2026</span>
+        <div class="dna-bar-wrap">
+          <span class="dna-pct">77% complete</span>
+          <div class="dna-bar-bg"><div class="dna-bar-fg" style="width:77%;background:linear-gradient(90deg,#0891B2,#22D3EE)"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</body>
+</html>

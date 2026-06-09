@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Brand Management — Detail (Shelby Cycles)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #F5F3EF;
+    width: 1920px;
+    height: 1541px;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar (same as list) ── */
+  .sidebar {
+    width: 373px;
+    min-width: 373px;
+    height: 1541px;
+    background: #1E1E20;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #2a2a2d;
+  }
+  .sidebar-logo { padding: 36px 47px 24px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .sidebar-logo .wordmark { font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 1.8px; text-transform: uppercase; }
+  .sidebar-logo .sub { font-size: 11px; color: #908F8E; margin-top: 3px; }
+  .sidebar-section-label { font-size: 10px; font-weight: 700; color: #595959; letter-spacing: 1px; text-transform: uppercase; padding: 20px 47px 10px; }
+  .nav-list { list-style: none; padding: 0 12px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 40px; border-radius: 50px; margin-bottom: 4px; cursor: pointer; text-decoration: none; color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 400; }
+  .nav-item.active { background: rgba(255,255,255,0.11); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-weight: 600; }
+  .nav-dot { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3); flex-shrink: 0; }
+  .nav-item.active .nav-dot { background: rgba(255,255,255,0.9); }
+  .nav-separator { height: 1px; background: rgba(255,255,255,0.07); margin: 8px 47px; }
+  .sidebar-tools { padding: 16px 47px 12px; border-top: 1px solid rgba(255,255,255,0.07); }
+  .sidebar-tools-label { font-size: 9px; font-weight: 700; color: #595959; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px; opacity: 0.5; }
+  .tools-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tool-badge { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.06); border-radius: 50px; padding: 4px 10px 4px 8px; font-size: 10px; color: #908F8E; }
+  .tool-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 47px; border-top: 1px solid rgba(255,255,255,0.07); }
+  .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#7C44F0,#06B6D4); flex-shrink: 0; }
+  .user-name { font-size: 12px; color: rgba(255,255,255,0.75); font-weight: 500; }
+
+  /* ── Content ── */
+  .content {
+    flex: 1;
+    height: 1541px;
+    background: #F5F3EF;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Back nav */
+  .back-bar {
+    background: #fff;
+    border-bottom: 1px solid #E8E6E0;
+    padding: 0 60px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+  }
+  .back-link {
+    font-size: 13px;
+    color: #595959;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .back-link::before { content: '←'; }
+
+  /* Page header */
+  .page-header-bar {
+    background: #fff;
+    border-bottom: 1px solid #E8E6E0;
+    padding: 12px 60px;
+  }
+  .page-header-bar h1 { font-size: 20px; font-weight: 700; color: #1E1E20; }
+  .page-header-bar p { font-size: 13px; color: #595959; margin-top: 4px; }
+
+  /* Brand banner */
+  .brand-banner {
+    height: 156px;
+    background: linear-gradient(135deg, #7C44F0, #06B6D4);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .banner-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.28);
+  }
+  .banner-tabs {
+    position: absolute;
+    bottom: 0;
+    left: 60px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .tab {
+    padding: 0 24px;
+    height: 42px;
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .tab.active {
+    background: #F5F3EF;
+    color: #1E1E20;
+    font-weight: 600;
+    position: relative;
+  }
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    height: 2px;
+    background: linear-gradient(90deg,#7C44F0,#06B6D4);
+    border-radius: 1px;
+  }
+  .tab.inactive {
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.85);
+  }
+
+  /* Panels area */
+  .panels-area {
+    flex: 1;
+    padding: 28px 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 20px;
+    align-content: start;
+    overflow: hidden;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid #D6D6D6;
+    border-radius: 20px;
+    padding: 24px;
+  }
+  .panel-green { background: #EDF9F1; border: none; border-radius: 20px; padding: 24px; }
+  .panel-red   { background: #FDEDED; border: none; border-radius: 20px; padding: 24px; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(214,214,214,0.5);
+  }
+  .panel-icon-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #595959;
+  }
+  .panel-green .panel-header,
+  .panel-red .panel-header {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 12px;
+  }
+
+  /* Colour palette rows */
+  .colour-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .colour-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+  .colour-info {}
+  .colour-label { font-size: 10px; font-weight: 700; color: #908F8E; text-transform: uppercase; letter-spacing: 0.5px; }
+  .colour-hex { font-size: 13px; color: #1E1E20; font-weight: 500; margin-top: 2px; }
+
+  /* Typography rows */
+  .typo-row { margin-bottom: 14px; }
+  .typo-label { font-size: 10px; font-weight: 700; color: #908F8E; text-transform: uppercase; letter-spacing: 0.5px; }
+  .typo-value { font-size: 14px; color: #1E1E20; margin-top: 3px; }
+  .typo-divider { height: 1px; background: rgba(214,214,214,0.5); margin: 14px 0; }
+  .tone-value {
+    font-size: 13px;
+    color: #595959;
+    line-height: 1.6;
+    margin-top: 4px;
+  }
+
+  /* Dos / Don'ts items */
+  .bullet-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #1E1E20;
+    line-height: 1.45;
+  }
+  .bullet-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    margin-top: 1px;
+  }
+  .bullet-icon.check { background: #1BA051; }
+  .bullet-icon.cross { background: #CC1E1E; }
+
+  /* Assets panel — full width */
+  .panel-full {
+    grid-column: 1 / -1;
+    background: #fff;
+    border: 1px solid #D6D6D6;
+    border-radius: 20px;
+    padding: 24px;
+  }
+
+  .asset-thumbs {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .asset-thumb {
+    width: 120px;
+    height: 80px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .asset-placeholder {
+    font-size: 13px;
+    color: #908F8E;
+    line-height: 1.6;
+    margin-top: 4px;
+  }
+
+  /* Edit Brand DNA button */
+  .edit-dna-btn {
+    position: absolute;
+    bottom: 32px;
+    right: 60px;
+    background: #1E1E20;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 22px;
+    height: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="wordmark">School House Lane</div>
+    <div class="sub">Creative Hub</div>
+  </div>
+  <div class="sidebar-section-label">Workspace</div>
+  <ul class="nav-list">
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Dashboard</a></li>
+    <li><a class="nav-item active" href="#"><span class="nav-dot"></span>Brand Management</a></li>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Prompt Library</a></li>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>AI Workspace</a></li>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Asset Gallery</a></li>
+    <div class="nav-separator"></div>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Client Briefs</a></li>
+    <div class="nav-separator"></div>
+    <li><a class="nav-item" href="#"><span class="nav-dot"></span>Settings</a></li>
+  </ul>
+  <div class="sidebar-tools">
+    <div class="sidebar-tools-label">Connected Tools</div>
+    <div class="tools-row">
+      <span class="tool-badge"><span class="tool-dot" style="background:#7C44F0"></span>Claude</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#33CC99"></span>NanoBanana</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#F59E0B"></span>ElevenLabs</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#FF7070"></span>HeyGen</span>
+      <span class="tool-badge"><span class="tool-dot" style="background:#06B6D4"></span>Figma</span>
+    </div>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-avatar"></div>
+    <div class="user-name">Leona Bobi</div>
+  </div>
+</aside>
+
+<!-- ── CONTENT ── -->
+<main class="content">
+
+  <div class="back-bar">
+    <a class="back-link" href="#">Brand Management</a>
+  </div>
+
+  <div class="page-header-bar">
+    <h1>Brand Management</h1>
+    <p>Manage brand guidelines and assets for all your clients.</p>
+  </div>
+
+  <div class="brand-banner">
+    <div class="banner-overlay"></div>
+    <div class="banner-tabs">
+      <div class="tab active">Shelby Cycles</div>
+      <div class="tab inactive">Assets</div>
+    </div>
+  </div>
+
+  <div class="panels-area">
+
+    <!-- Colour Palette -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon-dot" style="background:#7C44F0"></div>
+        <span class="panel-title">Colour Palette</span>
+      </div>
+      <div class="colour-row">
+        <div class="colour-swatch" style="background:#7C44F0"></div>
+        <div class="colour-info"><div class="colour-label">Primary</div><div class="colour-hex">#7C44F0</div></div>
+      </div>
+      <div class="colour-row">
+        <div class="colour-swatch" style="background:#06B6D4"></div>
+        <div class="colour-info"><div class="colour-label">Secondary</div><div class="colour-hex">#06B6D4</div></div>
+      </div>
+      <div class="colour-row">
+        <div class="colour-swatch" style="background:#F59E0B"></div>
+        <div class="colour-info"><div class="colour-label">Accent</div><div class="colour-hex">#F59E0B</div></div>
+      </div>
+      <div class="colour-row">
+        <div class="colour-swatch" style="background:#F5F3EF;border:1px solid #D6D6D6"></div>
+        <div class="colour-info"><div class="colour-label">Background</div><div class="colour-hex">#F5F3EF</div></div>
+      </div>
+      <div class="colour-row">
+        <div class="colour-swatch" style="background:#1E1E20"></div>
+        <div class="colour-info"><div class="colour-label">Text</div><div class="colour-hex">#1E1E20</div></div>
+      </div>
+    </div>
+
+    <!-- Typography -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon-dot" style="background:#06B6D4"></div>
+        <span class="panel-title">Typography</span>
+      </div>
+      <div class="typo-row">
+        <div class="typo-label">Heading</div>
+        <div class="typo-value" style="font-weight:700">Inter Bold</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-label">Body</div>
+        <div class="typo-value">Inter Regular</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-label">Accent</div>
+        <div class="typo-value" style="font-family:monospace">JetBrains Mono</div>
+      </div>
+      <div class="typo-divider"></div>
+      <div class="typo-label">Tone of Voice</div>
+      <div class="tone-value">
+        Professional, innovative, forward-thinking.<br>
+        Use active voice and concise sentences.<br>
+        Speak directly to serious cyclists with precision.
+      </div>
+    </div>
+
+    <!-- Brand Do's -->
+    <div class="panel-green">
+      <div class="panel-header">
+        <div class="panel-icon-dot" style="background:#1BA051"></div>
+        <span class="panel-title" style="color:#1BA051">Brand Do's</span>
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon check">✓</span>
+        Use futuristic imagery with clean lines
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon check">✓</span>
+        Maintain consistent purple/cyan colour scheme
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon check">✓</span>
+        Include subtle tech elements (circuits, nodes)
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon check">✓</span>
+        Keep messaging concise and impactful
+      </div>
+    </div>
+
+    <!-- Brand Don'ts -->
+    <div class="panel-red">
+      <div class="panel-header">
+        <div class="panel-icon-dot" style="background:#CC1E1E"></div>
+        <span class="panel-title" style="color:#CC1E1E">Brand Don'ts</span>
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon cross">✕</span>
+        Don't use outdated or generic tech imagery
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon cross">✕</span>
+        Avoid cluttered or busy compositions
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon cross">✕</span>
+        Never mix off-brand colour combinations
+      </div>
+      <div class="bullet-item">
+        <span class="bullet-icon cross">✕</span>
+        Avoid casual or informal language
+      </div>
+    </div>
+
+    <!-- Assets (full width) -->
+    <div class="panel-full">
+      <div class="panel-header">
+        <div class="panel-icon-dot" style="background:#7C44F0"></div>
+        <span class="panel-title">Assets</span>
+      </div>
+      <div class="asset-placeholder">Generated assets for Shelby Cycles will appear here. Save an asset from the AI Workspace to attach it to this brand.</div>
+      <div class="asset-thumbs">
+        <div class="asset-thumb" style="background:linear-gradient(135deg,#7C44F0,#06B6D4)"></div>
+        <div class="asset-thumb" style="background:linear-gradient(135deg,#06B6D4,#F59E0B)"></div>
+        <div class="asset-thumb" style="background:linear-gradient(135deg,#F59E0B,#7C44F0)"></div>
+        <div class="asset-thumb" style="background:linear-gradient(135deg,#059669,#06B6D4)"></div>
+        <div class="asset-thumb" style="background:linear-gradient(135deg,#1E1E20,#7C44F0)"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Edit Brand DNA — admin only -->
+  <button class="edit-dna-btn">Edit Brand DNA</button>
+
+</main>
+</body>
+</html>
