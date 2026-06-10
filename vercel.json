@@ -2,6 +2,13 @@
   "buildCommand": "cd app/frontend && npm install && npm run build",
   "outputDirectory": "app/frontend/dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://backend-production-e0fa.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/((?!assets|blog|favicon|robots|sitemap|auth\\.html).*)",
+      "destination": "/index.html"
+    }
   ]
 }
