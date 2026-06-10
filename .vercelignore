@@ -1,0 +1,19 @@
+**/node_modules
+Creative Design Agency Site
+app/backend/__pycache__
+app/backend/**/__pycache__
+app/backend/.venv
+app/backend/venv
+app/backend/logs
+**/*.pyc
+**/*.pyo
+.DS_Store
+*.mov
+*.mp4
+*.pdf
+*.pptx
+*.docx
+*.xlsx
+*.pages
+*.fig
+*.zip
