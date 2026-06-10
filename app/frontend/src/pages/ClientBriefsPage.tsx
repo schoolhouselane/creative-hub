@@ -12,7 +12,8 @@ import {
 
 /* ─── Types ─── */
 
-const BRIEF_TYPES = [
+// Strategic briefs (multi-phase wizards)
+const STRATEGIC_TYPES = [
   { id: 'the_nexus',     label: 'The Nexus',     codename: 'General Creative Brief', desc: 'Integrated campaigns, product launches, rebrands, always-on social', icon: Megaphone,   color: '#7c3aed' },
   { id: 'the_genesis',   label: 'The Genesis',   codename: 'Full Brand Design',      desc: 'New brand built from absolute scratch — strategy to identity',        icon: Paintbrush2, color: '#f59e0b' },
   { id: 'the_evolution', label: 'The Evolution', codename: 'Brand Refresh',          desc: 'Modernise an existing brand without a full rebrand',                  icon: Globe,       color: '#0ea5e9' },
@@ -20,11 +21,34 @@ const BRIEF_TYPES = [
   { id: 'the_velocity',  label: 'The Velocity',  codename: '30-Day Content Plan',    desc: 'Monthly social media content planning and activation',                icon: Film,        color: '#ef4444' },
 ] as const;
 
-type BriefTypeId = typeof BRIEF_TYPES[number]['id'];
+// Creative production briefs (quick-fill forms)
+const PRODUCTION_TYPES = [
+  { id: 'social_media',   label: 'Social Media',   desc: 'Posts, stories, reels, carousels',    icon: LayoutGrid,  color: '#7c3aed' },
+  { id: 'video_content',  label: 'Video Content',  desc: 'Intros, ads, explainers, avatars',     icon: Film,        color: '#0ea5e9' },
+  { id: 'brand_design',   label: 'Brand Design',   desc: 'Logos, brand assets, visual identity', icon: Paintbrush2, color: '#f59e0b' },
+  { id: 'digital_ads',    label: 'Digital Ads',    desc: 'Banners, ads, email graphics',         icon: Megaphone,   color: '#ef4444' },
+  { id: 'email_campaign', label: 'Email Campaign', desc: 'Email templates and visuals',          icon: Mail,        color: '#10b981' },
+  { id: 'website_app',    label: 'Website / App',  desc: 'UI mockups, hero images, icons',       icon: Globe,       color: '#6366f1' },
+] as const;
+
+const BRIEF_TYPES = [...STRATEGIC_TYPES, ...PRODUCTION_TYPES] as const;
+
+type StrategicId = typeof STRATEGIC_TYPES[number]['id'];
+type ProductionId = typeof PRODUCTION_TYPES[number]['id'];
+type BriefTypeId = StrategicId | ProductionId;
 
 type FieldDef = { label: string; placeholder: string; key: string; type?: 'text' | 'date' | 'url'; span?: 2 };
 
-const TYPE_FIELDS: Record<BriefTypeId, FieldDef[]> = {
+const STRATEGIC_ROUTES: Record<StrategicId, string> = {
+  the_nexus: '/client/briefs/new/nexus',
+  the_genesis: '/client/briefs/new/genesis',
+  the_evolution: '/client/briefs/new/evolution',
+  the_engine: '/client/briefs/new/website',
+  the_velocity: '/client/briefs/new/velocity',
+};
+
+// Quick-fill fields only for production types
+const TYPE_FIELDS: Partial<Record<BriefTypeId, FieldDef[]>> = {
   social_media: [
     { label: 'Platform(s)', key: 'platform', placeholder: 'e.g. Instagram, TikTok, LinkedIn' },
     { label: 'Format', key: 'format', placeholder: 'e.g. Feed posts, Stories, Reels, Carousels' },
@@ -325,7 +349,7 @@ function NewBriefForm({ user }: { user: ClientUser }) {
     );
   }
 
-  const typeFields = selectedType ? TYPE_FIELDS[selectedType] : [];
+  const typeFields = selectedType ? (TYPE_FIELDS[selectedType] || []) : [];
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
@@ -342,32 +366,49 @@ function NewBriefForm({ user }: { user: ClientUser }) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Type selector — matches Figma 1:3783 */}
+        {/* Strategic briefs */}
         <div>
-          <h2 className="mb-4 text-sm font-semibold text-[#1e1e20]">Select Type</h2>
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-[#1e1e20]">Strategic Briefs</h2>
+            <p className="text-xs text-[#8c8c8c]">Multi-phase guided forms — strategy to execution</p>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BRIEF_TYPES.map((t) => {
+            {STRATEGIC_TYPES.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button key={t.id} type="button"
+                  onClick={() => navigate(STRATEGIC_ROUTES[t.id as StrategicId])}
+                  className="flex items-center gap-3 rounded-2xl border-2 border-[#e2e2e2] bg-white p-4 text-left transition-all hover:border-[#1e1e20] hover:shadow-sm">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e2e2e2] bg-[#f9f9f8]"
+                    style={{ backgroundColor: `${t.color}15`, borderColor: `${t.color}30` }}>
+                    <Icon className="h-5 w-5" style={{ color: t.color }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#1e1e20]">{t.label}</p>
+                    <p className="text-[10px] font-medium text-[#8c8c8c]">{t.codename}</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[#c4c4c4]" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Creative production briefs */}
+        <div>
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-[#1e1e20]">Creative Production</h2>
+            <p className="text-xs text-[#8c8c8c]">Quick briefs for asset creation</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {PRODUCTION_TYPES.map((t) => {
               const Icon = t.icon;
               const active = selectedType === t.id;
               return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    const routes: Record<string, string> = {
-                      the_nexus: '/client/briefs/new/nexus',
-                      the_genesis: '/client/briefs/new/genesis',
-                      the_evolution: '/client/briefs/new/evolution',
-                      the_engine: '/client/briefs/new/website',
-                      the_velocity: '/client/briefs/new/velocity',
-                    };
-                    if (routes[t.id]) { navigate(routes[t.id]); return; }
-                    setSelectedType(t.id);
-                  }}
-                  className={`flex items-center gap-4 rounded-2xl border-2 bg-white p-4 text-left transition-all ${
+                <button key={t.id} type="button" onClick={() => setSelectedType(t.id)}
+                  className={`flex items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left transition-all ${
                     active ? 'border-[#1e1e20] shadow-sm' : 'border-[#e2e2e2] hover:border-[#c4c4c4]'
-                  }`}
-                >
+                  }`}>
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
                     active ? 'border-[#1e1e20] bg-[#1e1e20]' : 'border-[#e2e2e2] bg-[#f9f9f8]'
                   }`}>
@@ -377,12 +418,7 @@ function NewBriefForm({ user }: { user: ClientUser }) {
                     <p className="text-sm font-semibold text-[#1e1e20]">{t.label}</p>
                     <p className="truncate text-xs text-[#8c8c8c]">{t.desc}</p>
                   </div>
-                  {active && (
-                    <div className="ml-auto shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-[#1e1e20]">
-                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                    </div>
-                  )}
-                  <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-[#c4c4c4]" />
+                  {active && <Check className="h-4 w-4 shrink-0 text-[#1e1e20]" strokeWidth={3} />}
                 </button>
               );
             })}
