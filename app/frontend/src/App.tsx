@@ -50,7 +50,11 @@ const AppRoutes = () => (
     <Route path="/client-login" element={<LoginPage />} />
     <Route path="/client" element={<ClientPortal view="dashboard" />} />
     <Route path="/client/briefs" element={<ClientPortal view="list" />} />
-    <Route path="/client/briefs/new/website" element={<ClientPortal view="website" />} />
+    <Route path="/client/briefs/new/nexus"    element={<ClientPortal view="nexus" />} />
+    <Route path="/client/briefs/new/genesis"  element={<ClientPortal view="genesis" />} />
+    <Route path="/client/briefs/new/evolution" element={<ClientPortal view="evolution" />} />
+    <Route path="/client/briefs/new/website"  element={<ClientPortal view="website" />} />
+    <Route path="/client/briefs/new/velocity" element={<ClientPortal view="velocity" />} />
     <Route path="/client/briefs/new" element={<ClientPortal view="new" />} />
     <Route path="/client/briefs/:id" element={<ClientPortal view="detail" />} />
   </Routes>

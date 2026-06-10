@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { clientAuthApi, clientToken, ClientUser } from '@/lib/clientAuth';
 import axios from 'axios';
+import { NexusWizard, GenesisWizard, EvolutionWizard, VelocityWizard } from './ClientBriefWizards';
 import {
   LayoutGrid, Film, Paintbrush2, Megaphone, Mail, Globe,
   LogOut, FileText, Plus, ArrowRight, Clock, ChevronRight,
@@ -12,12 +13,11 @@ import {
 /* ─── Types ─── */
 
 const BRIEF_TYPES = [
-  { id: 'social_media',   label: 'Social Media',   desc: 'Posts, stories, reels, carousels',    icon: LayoutGrid,  color: '#7c3aed' },
-  { id: 'video_content',  label: 'Video Content',  desc: 'Intros, ads, explainers, avatars',     icon: Film,        color: '#0ea5e9' },
-  { id: 'brand_design',   label: 'Brand Design',   desc: 'Logos, brand assets, visual identity', icon: Paintbrush2, color: '#f59e0b' },
-  { id: 'digital_ads',    label: 'Digital Ads',    desc: 'Banners, ads, email graphics',         icon: Megaphone,   color: '#ef4444' },
-  { id: 'email_campaign', label: 'Email Campaign', desc: 'Email templates and visuals',          icon: Mail,        color: '#10b981' },
-  { id: 'website_app',    label: 'Website / App',  desc: 'UI mockups, hero images, icons',       icon: Globe,       color: '#6366f1' },
+  { id: 'the_nexus',     label: 'The Nexus',     codename: 'General Creative Brief', desc: 'Integrated campaigns, product launches, rebrands, always-on social', icon: Megaphone,   color: '#7c3aed' },
+  { id: 'the_genesis',   label: 'The Genesis',   codename: 'Full Brand Design',      desc: 'New brand built from absolute scratch — strategy to identity',        icon: Paintbrush2, color: '#f59e0b' },
+  { id: 'the_evolution', label: 'The Evolution', codename: 'Brand Refresh',          desc: 'Modernise an existing brand without a full rebrand',                  icon: Globe,       color: '#0ea5e9' },
+  { id: 'the_engine',    label: 'The Engine',    codename: 'SME Lead-Gen Website',   desc: 'Website + CRM + automation pipeline for SMEs',                        icon: LayoutGrid,  color: '#10b981' },
+  { id: 'the_velocity',  label: 'The Velocity',  codename: '30-Day Content Plan',    desc: 'Monthly social media content planning and activation',                icon: Film,        color: '#ef4444' },
 ] as const;
 
 type BriefTypeId = typeof BRIEF_TYPES[number]['id'];
@@ -354,10 +354,14 @@ function NewBriefForm({ user }: { user: ClientUser }) {
                   key={t.id}
                   type="button"
                   onClick={() => {
-                    if (t.id === 'website_app') {
-                      navigate('/client/briefs/new/website');
-                      return;
-                    }
+                    const routes: Record<string, string> = {
+                      the_nexus: '/client/briefs/new/nexus',
+                      the_genesis: '/client/briefs/new/genesis',
+                      the_evolution: '/client/briefs/new/evolution',
+                      the_engine: '/client/briefs/new/website',
+                      the_velocity: '/client/briefs/new/velocity',
+                    };
+                    if (routes[t.id]) { navigate(routes[t.id]); return; }
                     setSelectedType(t.id);
                   }}
                   className={`flex items-center gap-4 rounded-2xl border-2 bg-white p-4 text-left transition-all ${
@@ -378,9 +382,7 @@ function NewBriefForm({ user }: { user: ClientUser }) {
                       <Check className="h-3 w-3 text-white" strokeWidth={3} />
                     </div>
                   )}
-                  {t.id === 'website_app' && (
-                    <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-[#c4c4c4]" />
-                  )}
+                  <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-[#c4c4c4]" />
                 </button>
               );
             })}
@@ -1176,12 +1178,12 @@ function ClientDashboard({ user }: { user: ClientUser }) {
   const recent = briefs.slice(0, 4);
 
   const quickActions = [
-    { id: 'social_media',   label: 'Social Media',   desc: 'Posts, stories, reels',       icon: LayoutGrid,  color: '#7c3aed' },
-    { id: 'video_content',  label: 'Video Content',  desc: 'Intros, ads, explainers',      icon: Film,        color: '#0ea5e9' },
-    { id: 'brand_design',   label: 'Brand Design',   desc: 'Logos, brand assets',          icon: Paintbrush2, color: '#f59e0b' },
-    { id: 'digital_ads',    label: 'Digital Ads',    desc: 'Banners, ad graphics',         icon: Megaphone,   color: '#ef4444' },
-    { id: 'email_campaign', label: 'Email Campaign', desc: 'Templates and visuals',        icon: Mail,        color: '#10b981' },
-    { id: 'website_app',    label: 'Website / App',  desc: 'Full site, landing pages',     icon: Globe,       color: '#6366f1' },
+    { id: 'the_nexus',     label: 'The Nexus',     desc: 'Campaigns & launches',    icon: Megaphone,   color: '#7c3aed', route: '/client/briefs/new/nexus' },
+    { id: 'the_genesis',   label: 'The Genesis',   desc: 'New brand from scratch',  icon: Paintbrush2, color: '#f59e0b', route: '/client/briefs/new/genesis' },
+    { id: 'the_evolution', label: 'The Evolution', desc: 'Brand refresh',            icon: Globe,       color: '#0ea5e9', route: '/client/briefs/new/evolution' },
+    { id: 'the_engine',    label: 'The Engine',    desc: 'SME website + CRM',       icon: LayoutGrid,  color: '#10b981', route: '/client/briefs/new/website' },
+    { id: 'the_velocity',  label: 'The Velocity',  desc: '30-day content plan',     icon: Film,        color: '#ef4444', route: '/client/briefs/new/velocity' },
+    { id: 'custom',        label: 'Other Brief',   desc: 'Custom request',          icon: Mail,        color: '#8c8c8c', route: '/client/briefs/new' },
   ] as const;
 
   const hour = new Date().getHours();
@@ -1289,7 +1291,7 @@ function ClientDashboard({ user }: { user: ClientUser }) {
             <div className="grid grid-cols-2 gap-2">
               {quickActions.map(({ id, label, desc, icon: Icon, color }) => (
                 <button key={id}
-                  onClick={() => id === 'website_app' ? navigate('/client/briefs/new/website') : navigate('/client/briefs/new')}
+                  onClick={() => navigate(route)}
                   className="flex flex-col items-start rounded-2xl border border-[#e2e2e2] bg-white p-4 text-left hover:border-[#c4c4c4] hover:shadow-sm transition-all">
                   <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg"
                     style={{ backgroundColor: `${color}15` }}>
@@ -1333,7 +1335,7 @@ function ClientDashboard({ user }: { user: ClientUser }) {
 
 /* ─── Shell with auth guard ─── */
 
-type View = 'list' | 'new' | 'detail' | 'website' | 'dashboard';
+type View = 'list' | 'new' | 'detail' | 'website' | 'dashboard' | 'nexus' | 'genesis' | 'evolution' | 'velocity';
 
 export default function ClientPortal({ view = 'list' }: { view?: View }) {
   const navigate = useNavigate();
@@ -1363,11 +1365,15 @@ export default function ClientPortal({ view = 'list' }: { view?: View }) {
   return (
     <div className="flex h-screen overflow-hidden bg-[#f5f3ef]">
       <ClientSidebar user={user} onLogout={handleLogout} />
-      {view === 'dashboard' && <ClientDashboard user={user} />}
-      {view === 'new'      && <NewBriefForm user={user} />}
-      {view === 'website'  && <ClientWebsiteWizard user={user} />}
-      {view === 'detail'   && <BriefDetailView user={user} />}
-      {view === 'list'     && <BriefsList user={user} />}
+      {view === 'dashboard'  && <ClientDashboard user={user} />}
+      {view === 'new'        && <NewBriefForm user={user} />}
+      {view === 'nexus'      && <NexusWizard companyName={user.company_name || user.email} />}
+      {view === 'genesis'    && <GenesisWizard companyName={user.company_name || user.email} />}
+      {view === 'evolution'  && <EvolutionWizard companyName={user.company_name || user.email} />}
+      {view === 'website'    && <ClientWebsiteWizard user={user} />}
+      {view === 'velocity'   && <VelocityWizard companyName={user.company_name || user.email} />}
+      {view === 'detail'     && <BriefDetailView user={user} />}
+      {view === 'list'       && <BriefsList user={user} />}
     </div>
   );
 }
