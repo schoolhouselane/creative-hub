@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 import { viteSourceLocator } from '@metagptx/vite-plugin-source-locator';
-import { atoms } from '@metagptx/web-sdk/plugins';
+// atoms() removed — it intercepts all routes including auth
 import { vitePrerenderPlugin } from 'vite-prerender-plugin';
 import Sitemap from 'vite-plugin-sitemap';
 import { getBlogRoutes } from './prerender/blog-routes.js';
@@ -33,7 +33,7 @@ export default defineConfig(({ command }) => {
         prefix: 'mgx', // Prefix used to identify source locations; do not change.
       }),
       react(),
-      atoms(),
+      // atoms() removed
       Sitemap({
         hostname: 'https://atoms.template.com',
         lastmod: getSitemapLastmod(),

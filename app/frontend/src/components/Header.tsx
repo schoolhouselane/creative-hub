@@ -23,7 +23,7 @@ export default function Header() {
   }, []);
 
   const handleLogin = () => {
-    client.auth.toLogin();
+    window.location.href = "/auth.html";
   };
 
   const handleLogout = async () => {

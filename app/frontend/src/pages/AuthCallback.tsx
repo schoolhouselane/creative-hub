@@ -3,7 +3,7 @@ import { client } from '../lib/api';
 
 export default function AuthCallback() {
   useEffect(() => {
-    client.auth.login();
+    window.location.href = "/";
   }, []);
 
   return (

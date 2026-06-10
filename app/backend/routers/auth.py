@@ -74,27 +74,15 @@ def derive_name_from_email(email: str) -> str:
 
 
 @router.get("/login")
-async def login(request: Request, db: AsyncSession = Depends(get_db)):
-    """Start OIDC login flow with PKCE."""
-    state = generate_state()
-    nonce = generate_nonce()
-    code_verifier = generate_code_verifier()
-    code_challenge = generate_code_challenge(code_verifier)
-
-    # Store state, nonce, and code verifier in database
-    auth_service = AuthService(db)
-    await auth_service.store_oidc_state(state, nonce, code_verifier)
-
-    # Build redirect_uri dynamically from request
+async def login(request: Request):
+    """Redirect all login attempts to the unified login page."""
     backend_url = get_dynamic_backend_url(request)
-    redirect_uri = f"{backend_url}/api/v1/auth/callback"
-    logger.info("[login] Starting OIDC flow with redirect_uri=%s", redirect_uri)
-
-    auth_url = build_authorization_url(state, nonce, code_challenge, redirect_uri=redirect_uri)
+    # Strip the API path to get the frontend base URL
+    frontend_url = backend_url.replace(":8000", ":4001").replace(":8000", "")
+    from_url = request.query_params.get("from_url", "/")
     return RedirectResponse(
-        url=auth_url,
+        url=f"{frontend_url}/signin",
         status_code=status.HTTP_302_FOUND,
-        headers={"X-Request-ID": state},
     )
 
 

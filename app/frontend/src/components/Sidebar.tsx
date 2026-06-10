@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createClient } from '@metagptx/web-sdk';
+import { staffAuthApi, staffToken } from '@/lib/staffAuth';
 import {
   LayoutDashboard, Building2, BookMarked, MessageSquare, Image,
   FileText, LogOut, User, Menu, X,
@@ -24,9 +25,20 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    client.auth.me()
-      .then((res) => setUser(res?.data || null))
-      .catch(() => setUser(null));
+    // Try our staff JWT first; fall back to MGX SDK (dev bypass / platform auth)
+    if (staffToken.get()) {
+      staffAuthApi.me()
+        .then((u) => {
+          if (u) { setUser(u); return; }
+          // Token invalid — fall back to SDK
+          return client.auth.me().then((res) => setUser(res?.data || null));
+        })
+        .catch(() => setUser(null));
+    } else {
+      client.auth.me()
+        .then((res) => setUser(res?.data || null))
+        .catch(() => setUser(null));
+    }
   }, []);
 
   const isActive = (path: string) => {
@@ -34,10 +46,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = async () => {
-    await client.auth.logout();
+  const handleLogout = () => {
+    staffToken.clear();
+    client.auth.logout().catch(() => {});
     setUser(null);
-    window.location.href = '/';
+    window.location.href = '/auth.html';
   };
 
   const sidebarContent = (

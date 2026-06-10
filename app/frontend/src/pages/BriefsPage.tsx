@@ -85,7 +85,7 @@ export default function BriefsPage() {
           <h2 className="mb-4 text-2xl font-bold text-[#1e1e20]">Sign in to view your briefs</h2>
           <p className="mb-6 text-[#595959]">You need to be signed in to manage your briefs</p>
           <Button
-            onClick={() => client.auth.toLogin()}
+            onClick={() => { window.location.href = "/auth.html"; }}
             className="gap-2 bg-gradient-to-r from-violet-600 to-cyan-600 text-[#1e1e20]"
           >
             Sign In

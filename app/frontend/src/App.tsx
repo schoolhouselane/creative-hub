@@ -17,6 +17,10 @@ import AIWorkspacePage from './pages/AIWorkspacePage';
 import DashboardPage from './pages/DashboardPage';
 import AssetGalleryPage from './pages/AssetGalleryPage';
 import BrandCreateWizard from './pages/BrandCreateWizard';
+import WebsiteBriefWizard from './pages/WebsiteBriefWizard';
+import LoginPage from './pages/LoginPage';
+import ClientLoginPage from './pages/ClientLoginPage';
+import ClientPortal from './pages/ClientBriefsPage';
 
 const queryClient = new QueryClient();
 
@@ -34,12 +38,21 @@ const AppRoutes = () => (
     <Route path="/prompts" element={<PromptLibraryPage />} />
     <Route path="/briefs" element={<BriefsPage />} />
     <Route path="/briefs/new" element={<NewBrief />} />
+    <Route path="/briefs/new/website" element={<WebsiteBriefWizard />} />
     <Route path="/briefs/:id" element={<BriefDetail />} />
     <Route path="/new-brief" element={<NewBrief />} />
     <Route path="/brief/:id" element={<BriefDetail />} />
     <Route path="/settings" element={<SettingsPage />} />
+    <Route path="/signin" element={<LoginPage />} />
     <Route path="/auth/callback" element={<AuthCallback />} />
     <Route path="/auth/error" element={<AuthError />} />
+    {/* Client portal — separate from staff app */}
+    <Route path="/client-login" element={<LoginPage />} />
+    <Route path="/client" element={<ClientPortal view="dashboard" />} />
+    <Route path="/client/briefs" element={<ClientPortal view="list" />} />
+    <Route path="/client/briefs/new/website" element={<ClientPortal view="website" />} />
+    <Route path="/client/briefs/new" element={<ClientPortal view="new" />} />
+    <Route path="/client/briefs/:id" element={<ClientPortal view="detail" />} />
   </Routes>
 );
 
